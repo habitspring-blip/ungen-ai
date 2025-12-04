@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public"]
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  name      String?
+  credits   Int      @default(50000)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  rewrites  Rewrite[]
+
+  @@map("users")
+  @@schema("public")
+}
+
+model Rewrite {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title      String?
+  modelType  String   @map("model_type")
+  inputText  String   @map("input_text")
+  outputText String   @map("output_text")
+  wordCount  Int      @map("word_count")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("rewrites")
+  @@schema("public")
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([modelType])
+}

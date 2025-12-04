@@ -1,0 +1,31 @@
+:root {
+  /* SPACING SCALE */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+  --space-4xl: 64px;
+
+  /* TYPOGRAPHY */
+  --font-display: 36px;
+  --font-h1: 30px;
+  --font-h2: 24px;
+  --font-h3: 20px;
+  --font-body: 16px;
+  --font-small: 14px;
+  --font-micro: 12px;
+
+  /* COLORS */
+  --color-primary: #4f46e5;   /* indigo-600 */
+  --color-secondary: #9333ea; /* purple-600 */
+  --color-accent: #ec4899;    /* pink-500 */
+
+  --color-text: #111827;
+  --color-muted: #6b7280;
+  --color-light: #9ca3af;
+
+  --color-bg-page: #f8fafc;
+}
