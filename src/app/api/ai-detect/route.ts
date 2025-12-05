@@ -24,9 +24,14 @@ interface DetectionResult {
   confidence: number;
   reasoning: string[];
   indicators: {
-    sentenceStructure: number;
-    vocabularyComplexity: number;
-    repetitionPatterns: number;
+    sentenceStructure: { score: number; description: string };
+    vocabularyComplexity: { score: number; description: string };
+    repetitionPatterns: { score: number; description: string };
+    transitionUsage: { score: number; description: string };
+    perplexity: { score: number; description: string };
+    burstiness: { score: number; description: string };
+    sentiment: { score: number; description: string };
+    readability: { score: number; description: string };
     coherence: number;
     stylisticMarkers: number;
   };
@@ -34,20 +39,35 @@ interface DetectionResult {
   timestamp: string;
 }
 
+// Type for linguistic analysis results
+interface LinguisticAnalysis {
+  avgSentenceLength: number;
+  sentenceLengthVariance: number;
+  vocabularyRichness: number;
+  repetitionRatio: number;
+  transitionDensity: number;
+  perplexityScore: number;
+  burstinessScore: number;
+  sentimentScore: number;
+  readabilityScore: number;
+  totalWords: number;
+  totalSentences: number;
+}
+
 // Advanced linguistic analysis for AI detection
 function analyzeLinguisticPatterns(text: string) {
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
   const words = text.split(/\s+/).filter(w => w.length > 0);
-  
+
   // Sentence length analysis (AI tends to have more uniform sentence lengths)
   const sentenceLengths = sentences.map(s => s.split(/\s+/).length);
   const avgSentenceLength = sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length;
   const sentenceLengthVariance = sentenceLengths.reduce((sum, len) => sum + Math.pow(len - avgSentenceLength, 2), 0) / sentenceLengths.length;
-  
+
   // Vocabulary analysis (AI tends to use more complex but less varied vocabulary)
   const uniqueWords = new Set(words.map(w => w.toLowerCase()));
   const vocabularyRichness = uniqueWords.size / words.length;
-  
+
   // Repetition patterns (AI often repeats certain phrases or structures)
   const wordFreq: { [key: string]: number } = {};
   words.forEach(word => {
@@ -56,32 +76,143 @@ function analyzeLinguisticPatterns(text: string) {
       wordFreq[normalized] = (wordFreq[normalized] || 0) + 1;
     }
   });
-  
+
   const repeatedWords = Object.entries(wordFreq).filter(([_, count]) => count > 2).length;
   const repetitionRatio = repeatedWords / uniqueWords.size;
-  
+
   // Transition word analysis (AI often overuses transitions)
   const transitions = [
     'furthermore', 'moreover', 'additionally', 'consequently', 'therefore',
     'however', 'nevertheless', 'nonetheless', 'meanwhile', 'similarly',
     'likewise', 'in contrast', 'on the other hand', 'for example', 'for instance'
   ];
-  
+
   const transitionCount = transitions.reduce((count, transition) => {
     return count + (text.toLowerCase().match(new RegExp(transition, 'g')) || []).length;
   }, 0);
-  
+
   const transitionDensity = transitionCount / sentences.length;
-  
+
+  // NEW: Perplexity analysis (AI text tends to have lower perplexity)
+  const perplexityScore = calculatePerplexity(text);
+
+  // NEW: Burstiness analysis (AI text tends to be less bursty)
+  const burstinessScore = calculateBurstiness(sentenceLengths);
+
+  // NEW: Sentiment analysis (AI text often has neutral sentiment)
+  const sentimentScore = analyzeSentiment(text);
+
+  // NEW: Readability analysis (AI text often has higher readability)
+  const readabilityScore = calculateReadability(text, words.length, sentences.length);
+
   return {
     avgSentenceLength,
     sentenceLengthVariance,
     vocabularyRichness,
     repetitionRatio,
     transitionDensity,
+    perplexityScore,
+    burstinessScore,
+    sentimentScore,
+    readabilityScore,
     totalWords: words.length,
     totalSentences: sentences.length
   };
+}
+
+// NEW: Perplexity calculation (measure of text predictability)
+function calculatePerplexity(text: string): number {
+  // Simple heuristic for perplexity - lower values indicate more predictable (AI-like) text
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+  const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+
+  // Calculate type-token ratio (TTR)
+  const ttr = uniqueWords.size / words.length;
+
+  // Calculate hapax legomena ratio (words that appear only once)
+  const hapaxCount = Array.from(uniqueWords).filter(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    return (text.match(regex) || []).length === 1;
+  }).length;
+  const hapaxRatio = hapaxCount / uniqueWords.size;
+
+  // Simple perplexity heuristic (lower = more AI-like)
+  // AI text tends to have lower TTR and lower hapax ratio
+  const perplexity = 1 / (ttr * (1 + hapaxRatio));
+
+  // Normalize to 0-1 range
+  return Math.min(Math.max(perplexity * 0.1, 0), 1);
+}
+
+// NEW: Burstiness calculation (measure of sentence length variation)
+function calculateBurstiness(sentenceLengths: number[]): number {
+  if (sentenceLengths.length <= 1) return 0.5;
+
+  // Calculate mean and standard deviation
+  const mean = sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length;
+  const stdDev = Math.sqrt(sentenceLengths.reduce((sum, len) => sum + Math.pow(len - mean, 2), 0) / sentenceLengths.length);
+
+  // Calculate coefficient of variation (CV)
+  const cv = stdDev / mean;
+
+  // Burstiness score - higher CV means more bursty (human-like)
+  // AI text tends to have lower burstiness (more uniform sentence lengths)
+  const burstiness = Math.min(cv * 2, 1);
+
+  return burstiness;
+}
+
+// NEW: Sentiment analysis
+function analyzeSentiment(text: string): number {
+  // Simple sentiment analysis using word lists
+  const positiveWords = ['happy', 'joy', 'love', 'excellent', 'great', 'wonderful', 'amazing', 'fantastic'];
+  const negativeWords = ['sad', 'angry', 'hate', 'terrible', 'awful', 'horrible', 'bad', 'worst'];
+
+  const textLower = text.toLowerCase();
+
+  let positiveCount = 0;
+  let negativeCount = 0;
+
+  positiveWords.forEach(word => {
+    positiveCount += (textLower.match(new RegExp(`\\b${word}\\b`, 'g')) || []).length;
+  });
+
+  negativeWords.forEach(word => {
+    negativeCount += (textLower.match(new RegExp(`\\b${word}\\b`, 'g')) || []).length;
+  });
+
+  // Sentiment score: -1 (negative) to +1 (positive)
+  // AI text often has neutral sentiment (close to 0)
+  const sentiment = (positiveCount - negativeCount) / (positiveCount + negativeCount + 1);
+
+  // Normalize to -1 to 1 range and convert to 0-1 for consistency
+  return (sentiment + 1) / 2;
+}
+
+// NEW: Readability analysis using Flesch-Kincaid formula
+function calculateReadability(text: string, wordCount: number, sentenceCount: number): number {
+  // Count syllables (simple approximation)
+  let syllableCount = 0;
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+
+  words.forEach(word => {
+    const wordLower = word.toLowerCase();
+    if (wordLower.endsWith('es') || wordLower.endsWith('ed')) {
+      syllableCount += 1;
+    } else {
+      // Count vowel groups as syllables
+      const vowelGroups = wordLower.match(/[aeiouy]+/g);
+      syllableCount += vowelGroups ? vowelGroups.length : 1;
+    }
+  });
+
+  // Flesch-Kincaid Reading Ease formula
+  // Score: 0-100 (higher = easier to read)
+  // AI text often has higher readability scores
+  const fleschScore = 206.835 - 1.015 * (wordCount / sentenceCount) - 84.6 * (syllableCount / wordCount);
+
+  // Convert to 0-1 scale (higher = more readable/AI-like)
+  return Math.min(Math.max(fleschScore / 100, 0), 1);
 }
 
 // AI Detection using Cloudflare Workers AI
@@ -230,76 +361,59 @@ Focus on linguistic patterns, structure, and writing style.
   }
 }
 
-// Consensus-based AI detection
+// Enhanced Multimodal AI Detection with High-End Linguistic Models
 async function consensusDetection(text: string): Promise<DetectionResult> {
   const linguistic = analyzeLinguisticPatterns(text);
-  
+
   const results: number[] = [];
   const reasoning: string[] = [];
-  
+
   try {
+    // Multimodal approach: Use both AI models and advanced linguistic analysis
     const [cloudflareResult, claudeResult] = await Promise.allSettled([
       cloudflareAIDetection(text),
       claudeAIDetection(text)
     ]);
 
+    // Process Cloudflare result
     if (cloudflareResult.status === 'fulfilled') {
       results.push(cloudflareResult.value.score);
       reasoning.push(...cloudflareResult.value.reasoning.map(r => `Cloudflare: ${r}`));
     }
 
+    // Process Claude result
     if (claudeResult.status === 'fulfilled') {
       results.push(claudeResult.value.score);
       reasoning.push(...claudeResult.value.reasoning.map(r => `Claude: ${r}`));
     }
 
-    // If both models fail, fall back to linguistic analysis only
+    // If AI models fail, use advanced linguistic analysis
     if (results.length === 0) {
-      // Simple rule-based fallback
-      let fallbackScore = 0.5;
-      
-      if (linguistic.sentenceLengthVariance < 5) fallbackScore += 0.2;
-      if (linguistic.transitionDensity > 0.3) fallbackScore += 0.2;
-      if (linguistic.repetitionRatio > 0.15) fallbackScore += 0.1;
-      if (linguistic.vocabularyRichness < 0.6) fallbackScore += 0.1;
-      
-      results.push(Math.min(fallbackScore, 1.0));
-      reasoning.push("Linguistic pattern analysis");
+      // Multimodal linguistic analysis using all advanced features
+      const linguisticScore = calculateMultimodalLinguisticScore(linguistic);
+      results.push(linguisticScore);
+      reasoning.push("Advanced multimodal linguistic analysis");
     }
 
   } catch (error) {
     console.error("Consensus detection error:", error);
-    // Fallback to simple analysis
-    let fallbackScore = 0.5;
-    
-    if (linguistic.sentenceLengthVariance < 5) fallbackScore += 0.2;
-    if (linguistic.transitionDensity > 0.3) fallbackScore += 0.2;
-    if (linguistic.repetitionRatio > 0.15) fallbackScore += 0.1;
-    if (linguistic.vocabularyRichness < 0.6) fallbackScore += 0.1;
-    
-    results.push(Math.min(fallbackScore, 1.0));
-    reasoning.push("Fallback linguistic analysis");
+    // Fallback to multimodal linguistic analysis
+    const linguisticScore = calculateMultimodalLinguisticScore(linguistic);
+    results.push(linguisticScore);
+    reasoning.push("Multimodal linguistic analysis fallback");
   }
 
-  // Calculate consensus score
-  const consensusScore = results.reduce((a, b) => a + b, 0) / results.length;
-  
-  // Determine if AI-generated based on confidence thresholds
-  const isAIGenerated = consensusScore > AI_CONFIDENCE_THRESHOLD;
-  
-  // Calculate indicators
-  const indicators = {
-    sentenceStructure: linguistic.sentenceLengthVariance < 5 ? 0.8 : 0.3,
-    vocabularyComplexity: linguistic.vocabularyRichness < 0.6 ? 0.7 : 0.4,
-    repetitionPatterns: linguistic.repetitionRatio > 0.15 ? 0.8 : 0.2,
-    coherence: consensusScore > 0.7 ? 0.9 : 0.6,
-    stylisticMarkers: linguistic.transitionDensity > 0.3 ? 0.8 : 0.3
-  };
+  // Calculate weighted consensus score
+  const consensusScore = calculateWeightedConsensusScore(results, linguistic);
 
-  // Create model consensus description
-  const modelConsensus = results.length > 1 
-    ? `Consensus of ${results.length} AI models` 
-    : "Single model analysis";
+  // Determine if AI-generated based on enhanced confidence thresholds
+  const isAIGenerated = consensusScore > AI_CONFIDENCE_THRESHOLD;
+
+  // Calculate comprehensive indicators using all advanced metrics
+  const indicators = calculateComprehensiveIndicators(linguistic, consensusScore);
+
+  // Create detailed model consensus description
+  const modelConsensus = getModelConsensusDescription(results.length);
 
   return {
     isAIGenerated,
@@ -309,6 +423,123 @@ async function consensusDetection(text: string): Promise<DetectionResult> {
     modelConsensus,
     timestamp: new Date().toISOString()
   };
+}
+
+// NEW: Multimodal linguistic scoring using all advanced features
+function calculateMultimodalLinguisticScore(linguistic: LinguisticAnalysis): number {
+  // Weighted scoring based on multiple linguistic features
+  // Each feature contributes differently to AI detection
+
+  // Sentence structure analysis (AI tends to have uniform sentence lengths)
+  const sentenceStructureScore = linguistic.sentenceLengthVariance < 5 ? 0.8 : 0.3;
+
+  // Vocabulary analysis (AI tends to use less varied vocabulary)
+  const vocabularyScore = linguistic.vocabularyRichness < 0.6 ? 0.7 : 0.4;
+
+  // Repetition analysis (AI tends to repeat phrases)
+  const repetitionScore = linguistic.repetitionRatio > 0.15 ? 0.8 : 0.2;
+
+  // Transition word analysis (AI tends to overuse transitions)
+  const transitionScore = linguistic.transitionDensity > 0.3 ? 0.8 : 0.3;
+
+  // Perplexity analysis (AI text tends to be more predictable)
+  const perplexityScore = 1 - linguistic.perplexityScore; // Lower perplexity = more AI-like
+
+  // Burstiness analysis (AI text tends to be less bursty)
+  const burstinessScore = 1 - linguistic.burstinessScore; // Lower burstiness = more AI-like
+
+  // Sentiment analysis (AI text tends to be neutral)
+  const sentimentScore = Math.abs(linguistic.sentimentScore - 0.5) * 2; // Neutral sentiment = more AI-like
+
+  // Readability analysis (AI text tends to have higher readability)
+  const readabilityScore = linguistic.readabilityScore; // Higher readability = more AI-like
+
+  // Weighted average with different importance for each feature
+  const weightedScore = (
+    sentenceStructureScore * 0.20 +  // 20% weight
+    vocabularyScore * 0.15 +        // 15% weight
+    repetitionScore * 0.15 +         // 15% weight
+    transitionScore * 0.10 +        // 10% weight
+    perplexityScore * 0.15 +        // 15% weight
+    burstinessScore * 0.10 +        // 10% weight
+    sentimentScore * 0.05 +         // 5% weight
+    readabilityScore * 0.10         // 10% weight
+  );
+
+  // Normalize and adjust based on text length
+  const lengthFactor = Math.min(linguistic.totalWords / 100, 1);
+  const finalScore = Math.min(Math.max(weightedScore * (0.8 + lengthFactor * 0.2), 0), 1);
+
+  return finalScore;
+}
+
+// NEW: Weighted consensus scoring
+function calculateWeightedConsensusScore(modelScores: number[], linguistic: LinguisticAnalysis): number {
+  if (modelScores.length === 0) {
+    return calculateMultimodalLinguisticScore(linguistic);
+  }
+
+  // If we have model scores, use them as primary indicators
+  const modelConsensus = modelScores.reduce((a, b) => a + b, 0) / modelScores.length;
+
+  // Blend with linguistic analysis for more robust detection
+  const linguisticScore = calculateMultimodalLinguisticScore(linguistic);
+
+  // Weighted blend: 70% models, 30% linguistic (if models available)
+  const blendedScore = modelConsensus * 0.7 + linguisticScore * 0.3;
+
+  return Math.min(Math.max(blendedScore, 0), 1);
+}
+
+// NEW: Comprehensive indicators calculation
+function calculateComprehensiveIndicators(linguistic: LinguisticAnalysis, consensusScore: number) {
+  return {
+    sentenceStructure: {
+      score: linguistic.sentenceLengthVariance < 5 ? 0.8 : 0.3,
+      description: `Sentence length variance: ${linguistic.sentenceLengthVariance.toFixed(2)}`
+    },
+    vocabularyComplexity: {
+      score: linguistic.vocabularyRichness < 0.6 ? 0.7 : 0.4,
+      description: `Vocabulary richness: ${linguistic.vocabularyRichness.toFixed(2)}`
+    },
+    repetitionPatterns: {
+      score: linguistic.repetitionRatio > 0.15 ? 0.8 : 0.2,
+      description: `Repetition ratio: ${linguistic.repetitionRatio.toFixed(2)}`
+    },
+    transitionUsage: {
+      score: linguistic.transitionDensity > 0.3 ? 0.8 : 0.3,
+      description: `Transition density: ${linguistic.transitionDensity.toFixed(2)}`
+    },
+    perplexity: {
+      score: 1 - linguistic.perplexityScore,
+      description: `Perplexity: ${linguistic.perplexityScore.toFixed(2)} (lower = more AI-like)`
+    },
+    burstiness: {
+      score: 1 - linguistic.burstinessScore,
+      description: `Burstiness: ${linguistic.burstinessScore.toFixed(2)} (lower = more AI-like)`
+    },
+    sentiment: {
+      score: Math.abs(linguistic.sentimentScore - 0.5) * 2,
+      description: `Sentiment: ${linguistic.sentimentScore.toFixed(2)} (neutral = more AI-like)`
+    },
+    readability: {
+      score: linguistic.readabilityScore,
+      description: `Readability: ${linguistic.readabilityScore.toFixed(2)} (higher = more AI-like)`
+    },
+    coherence: consensusScore > 0.7 ? 0.9 : 0.6,
+    stylisticMarkers: linguistic.transitionDensity > 0.3 ? 0.8 : 0.3
+  };
+}
+
+// NEW: Enhanced model consensus description
+function getModelConsensusDescription(modelCount: number): string {
+  if (modelCount >= 2) {
+    return `Multimodal consensus of ${modelCount} high-end AI models with advanced linguistic analysis`;
+  } else if (modelCount === 1) {
+    return "Single high-end AI model with advanced linguistic analysis";
+  } else {
+    return "Advanced multimodal linguistic analysis (no AI models available)";
+  }
 }
 
 // Main API endpoint

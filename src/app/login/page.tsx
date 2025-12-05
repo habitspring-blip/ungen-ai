@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [checkingSession, setCheckingSession] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   // Session check
   const checkSession = useCallback(async () => {
@@ -75,6 +76,31 @@ export default function LoginPage() {
     }
 
     router.push("/dashboard")
+  }
+
+  async function handleGoogleLogin() {
+    setGoogleLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+
+      if (error) {
+        alert(error.message)
+        setGoogleLoading(false)
+        return
+      }
+
+      // User will be redirected to Google for authentication
+      // After successful authentication, they'll be redirected back to our callback
+    } catch (error) {
+      console.error("Google login error:", error)
+      alert("Failed to initiate Google login")
+      setGoogleLoading(false)
+    }
   }
 
   return (

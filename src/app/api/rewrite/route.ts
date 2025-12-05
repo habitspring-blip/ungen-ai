@@ -499,8 +499,22 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     console.error('Rewrite error:', err);
     const errorMessage = err instanceof Error ? err.message : "Rewrite failed";
+
+    // Provide more specific error messages for common issues
+    let userFriendlyError = errorMessage;
+
+    if (errorMessage.includes('Cloudflare failed') || errorMessage.includes('Claude failed')) {
+      userFriendlyError = "AI service unavailable. Please try again later.";
+    } else if (errorMessage.includes('Insufficient credits')) {
+      userFriendlyError = errorMessage; // Keep the specific credits message
+    } else if (errorMessage.includes('Unauthorized')) {
+      userFriendlyError = "Please log in to use this feature.";
+    } else if (errorMessage.includes('Max length')) {
+      userFriendlyError = errorMessage; // Keep the length limit message
+    }
+
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { success: false, error: userFriendlyError },
       { status: 500 }
     );
   }

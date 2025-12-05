@@ -262,16 +262,25 @@ export default function PricingPage() {
               <Button
                 variant={plan.buttonVariant}
                 className="w-full mb-4"
-                disabled={plan.name !== "Free"}
+                disabled={false}
+                onClick={() => {
+                  if (plan.name === "Free") {
+                    // Handle free plan activation
+                    alert('Free plan activated!');
+                  } else {
+                    // Navigate to payment checkout
+                    window.location.href = `/checkout?plan=${plan.name.toLowerCase()}`;
+                  }
+                }}
               >
                 {plan.name === "Free"
                   ? "Start Free"
-                  : "Coming Soon"}
+                  : "Upgrade Now"}
               </Button>
               
               {plan.name !== "Free" && (
-                <div className="text-xs text-center text-amber-600 font-semibold mb-2 bg-amber-50 py-1 px-2 rounded-lg">
-                  🚀 Launching Soon
+                <div className="text-xs text-center text-green-600 font-semibold mb-2 bg-green-50 py-1 px-2 rounded-lg">
+                  🚀 Available Now
                 </div>
               )}
 
@@ -301,16 +310,16 @@ export default function PricingPage() {
           </p>
 
           <div className="flex justify-center gap-3">
-            <Button variant="primary" disabled>
-              Coming Soon
+            <Button variant="primary" onClick={() => window.location.href = '/contact'}>
+              Contact Sales
             </Button>
-            <Button variant="subtle" disabled>
-              Coming Soon
+            <Button variant="subtle" onClick={() => window.location.href = '/dashboard'}>
+              View Dashboard
             </Button>
           </div>
           
-          <p className="text-xs text-amber-600 font-medium mt-3">
-            💡 Currently in Beta - Pro plans launching soon!
+          <p className="text-xs text-green-600 font-medium mt-3">
+            💡 All plans are now available! Choose your preferred option.
           </p>
         </div>
 

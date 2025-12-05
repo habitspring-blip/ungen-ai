@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import PremiumButton from '@/components/ui/PremiumButton';
+import ToolsDropdown from '@/components/ui/ToolsDropdown';
 import { useUser } from '@/context/UserContext';
 import Link from 'next/link';
 
@@ -18,14 +19,12 @@ export default function EnhancedTopbar() {
     { href: '/editor', label: 'Editor' },
     { href: '/ai-detection', label: 'AI Detection' },
     { href: '/history', label: 'History' },
-    { href: '/tools', label: 'Tools' },
   ];
 
   // Feature navigation items
   const featureNavItems = [
     { href: '/pricing', label: 'Pricing' },
     { href: '/settings', label: 'Settings' },
-    { href: '/billing', label: 'Billing' },
   ];
 
   const handleSearch = (e: React.FormEvent) => {
@@ -122,6 +121,9 @@ export default function EnhancedTopbar() {
                   {item.label}
                 </Link>
               ))}
+    
+              {/* Tools Dropdown */}
+              <ToolsDropdown />
             </div>
 
             {/* User Menu */}

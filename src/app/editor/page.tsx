@@ -116,13 +116,21 @@ export default function EditorPage() {
         console.log("🔄 Saving transformation to history:", { input: input.substring(0, 50) + "...", output: data.output.substring(0, 50) + "..." });
         saveHistory(input, data.output);
         console.log("✅ History saved successfully");
-        
+
         // Show visual feedback
         setSaveStatus("Saved to history!");
         setTimeout(() => setSaveStatus(""), 3000);
       }
-      else setOutput("Rewrite failed. Please try again.");
-    } catch {
+      else {
+        // Provide more specific error messages
+        const errorMessage = data.error || "Rewrite failed. Please try again.";
+        setOutput(`Rewrite failed: ${errorMessage}`);
+
+        // Show error in console for debugging
+        console.error("Rewrite API error:", data.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Network error:", error);
       setOutput("Network error. Please check your connection.");
     }
 

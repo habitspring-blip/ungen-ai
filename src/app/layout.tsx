@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { UserProvider } from "../context/UserContext";
 import EnhancedTopbar from "@/components/navigation/EnhancedTopbar";
 import EnhancedSidebar from "@/components/navigation/EnhancedSidebar";
+import GlobalCortexAIAssistant from "@/components/ui/GlobalCortexAIAssistant";
 import "../styles/design-tokens.css";
 
 const inter = Inter({
@@ -46,6 +47,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </UserProvider>
+
+        {/* Global CortexAI Assistant - Always Visible */}
+        <GlobalCortexAIAssistant />
       </body>
     </html>
   );
