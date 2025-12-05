@@ -1,12 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function ResetPasswordForm() {
   const supabase = createClient();
-  const search = useSearchParams();
   const router = useRouter();
 
   const [ready, setReady] = useState(false);
@@ -15,7 +14,9 @@ function ResetPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
 
   // Verify the user has an active session from the recovery link
   useEffect(() => {
@@ -33,6 +34,24 @@ function ResetPasswordForm() {
     checkSession();
   }, [supabase]);
 
+  // Derive validation error from current state (no useEffect needed!)
+  const formError = (() => {
+    if (!passwordTouched && !confirmTouched) {
+      return null;
+    }
+
+    if (passwordTouched && password.length > 0 && password.length < 6) {
+      return "Password must be at least 6 characters long";
+    }
+
+    if (confirmTouched && confirm.length > 0 && password !== confirm) {
+      return "Passwords do not match";
+    }
+
+    return null;
+  })();
+
+  // Early returns AFTER all hooks
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -59,18 +78,19 @@ function ResetPasswordForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setFormError(null);
-
+    
+    // Final validation on submit
     if (password.length < 6) {
-      setFormError("Password must be at least 6 characters long");
+      setPasswordTouched(true);
       return;
     }
 
     if (password !== confirm) {
-      setFormError("Passwords do not match");
+      setConfirmTouched(true);
       return;
     }
 
+    setSubmitError(null);
     setLoading(true);
 
     const { error: updateError } = await supabase.auth.updateUser({ password });
@@ -78,7 +98,7 @@ function ResetPasswordForm() {
     setLoading(false);
 
     if (updateError) {
-      setFormError(updateError.message);
+      setSubmitError(updateError.message);
       return;
     }
 
@@ -95,9 +115,9 @@ function ResetPasswordForm() {
 
         {!done ? (
           <form onSubmit={handleSubmit} className="space-y-5">
-            {formError && (
+            {(formError || submitError) && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-900">{formError}</p>
+                <p className="text-sm text-amber-900">{formError || submitError}</p>
               </div>
             )}
 
@@ -110,10 +130,8 @@ function ResetPasswordForm() {
                 value={password}
                 required
                 minLength={6}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setFormError(null);
-                }}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => setPasswordTouched(true)}
                 className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
@@ -128,10 +146,8 @@ function ResetPasswordForm() {
                 value={confirm}
                 required
                 minLength={6}
-                onChange={(e) => {
-                  setConfirm(e.target.value);
-                  setFormError(null);
-                }}
+                onChange={(e) => setConfirm(e.target.value)}
+                onBlur={() => setConfirmTouched(true)}
                 className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
             </div>
