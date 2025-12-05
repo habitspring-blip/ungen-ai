@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   createContext,
@@ -6,118 +6,135 @@ import {
   useState,
   useEffect,
   useCallback,
-} from "react"
-import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+} from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 interface User {
-  name: string
-  email: string
-  avatar: string
-  plan: string
-  creditsUsed: number
-  creditsLimit: number
+  name: string;
+  email: string;
+  avatar: string;
+  plan: string;
+  creditsUsed: number;
+  creditsLimit: number;
 }
 
 interface UserContextType {
-  user: User | null
-  loading: boolean
-  setUser: (user: User | null) => void
-  logout: () => Promise<void>
+  user: User | null;
+  loading: boolean;
+  setUser: (user: User | null) => void;
+  logout: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType | null>(null)
+const UserContext = createContext<UserContextType | null>(null);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const supabase = createClient()
+  const router = useRouter();
+  const supabase = createClient();
+  const params = useSearchParams();
 
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Convert raw Supabase session user into your User type
-  const mapUser = useCallback((sbUser: any): User => {
+  // Map Supabase user to your User type
+  const mapUser = useCallback((sbUser: SupabaseUser): User => {
     return {
-      name: sbUser.user_metadata?.full_name || "User",
-      email: sbUser.email,
+      name: (sbUser.user_metadata?.full_name as string) || "User",
+      email: sbUser.email as string,
       avatar:
-        sbUser.user_metadata?.avatar_url ||
+        (sbUser.user_metadata?.avatar_url as string) ||
         "https://ui-avatars.com/api/?name=U&background=111&color=fff",
-      plan: "Free",
-      creditsUsed: 0,
-      creditsLimit: 1000,
+      plan: (sbUser.user_metadata?.plan as string) || "Free",
+      creditsUsed: (sbUser.user_metadata?.creditsUsed as number) || 0,
+      creditsLimit: (sbUser.user_metadata?.creditsLimit as number) || 1000,
+    };
+  }, []);
+
+  // Clear PKCE / magic link params from URL
+  const clearAuthParams = useCallback(() => {
+    const code = params.get("code");
+    const token = params.get("token");
+    const type = params.get("type");
+
+    if (code || token || type) {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
     }
-  }, [])
+  }, [params]);
 
-  // Initial session load (only once)
+  // Initial session load
   useEffect(() => {
-    let active = true
+    let active = true;
 
-    async function load() {
-      const { data } = await supabase.auth.getSession()
-
-      if (!active) return
+    async function loadSession() {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
 
       if (data.session?.user) {
-        const mapped = mapUser(data.session.user)
-        setUser(mapped)
-        localStorage.setItem("user", JSON.stringify(mapped))
+        setUser(mapUser(data.session.user));
       } else {
-        setUser(null)
-        localStorage.removeItem("user")
+        setUser(null);
       }
 
-      setLoading(false)
+      clearAuthParams();
+      setLoading(false);
     }
 
-    // Make sure it does not block hydration
-    Promise.resolve().then(load)
+    loadSession();
 
     return () => {
-      active = false
-    }
-  }, [supabase, mapUser])
+      active = false;
+    };
+  }, [supabase, mapUser, clearAuthParams]);
 
-  // Subscribe to Supabase auth events (login, logout, refresh)
+  // Auth event handling
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        const mapped = mapUser(session.user)
-        setUser(mapped)
-        localStorage.setItem("user", JSON.stringify(mapped))
+        setUser(mapUser(session.user));
       }
 
       if (event === "SIGNED_OUT") {
-        setUser(null)
-        localStorage.removeItem("user")
-        router.push("/login")
+        setUser(null);
+        router.push("/login");
       }
-    })
+
+      clearAuthParams();
+    });
 
     return () => {
-      subscription.unsubscribe()
-    }
-  }, [supabase, mapUser, router])
+      subscription.unsubscribe();
+    };
+  }, [supabase, mapUser, router, clearAuthParams]);
 
-  // Logout handler
+  // Logout
   async function logout() {
-    await supabase.auth.signOut()
-    setUser(null)
-    localStorage.removeItem("user")
-    router.push("/login")
+    await supabase.auth.signOut();
+    setUser(null);
+    router.push("/login");
   }
 
   return (
-    <UserContext.Provider value={{ user, loading, setUser, logout }}>
+    <UserContext.Provider
+      value={{
+        user,
+        loading,
+        setUser,
+        logout,
+      }}
+    >
       {children}
     </UserContext.Provider>
-  )
+  );
 }
 
 export function useUser() {
-  const ctx = useContext(UserContext)
-  if (!ctx) throw new Error("useUser must be used inside UserProvider")
-  return ctx
+  const ctx = useContext(UserContext);
+  if (!ctx) {
+    throw new Error("useUser must be used inside UserProvider");
+  }
+  return ctx;
 }
