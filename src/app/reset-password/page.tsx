@@ -1,49 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const supabase = createClient();
   const search = useSearchParams();
   const router = useRouter();
-
-  const token = search.get("token"); // token_hash
-  const type = search.get("type");
 
   const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Step 1 — Verify token_hash from Supabase recovery link
+  // Verify the user has an active session from the recovery link
   useEffect(() => {
-    async function init() {
-      if (!token || type !== "recovery") return;
+    async function checkSession() {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      const { error } = await supabase.auth.verifyOtp({
-        type: "recovery",
-        token_hash: token, // ✔ FIXED PARAM
-      });
-
-      if (error) {
-        console.error(error);
-        alert("Reset link is invalid or expired.");
+      if (sessionError || !session) {
+        setError("Invalid or expired reset link. Please request a new one.");
         return;
       }
 
       setReady(true);
     }
 
-    init();
-  }, [token, type]);
+    checkSession();
+  }, [supabase]);
 
-  if (!token) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600 text-sm">Invalid or expired reset link.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-8 border border-gray-200">
+          <p className="text-red-600 text-sm text-center">{error}</p>
+          <button
+            onClick={() => router.push("/forgot-password")}
+            className="w-full mt-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+          >
+            Request New Reset Link
+          </button>
+        </div>
       </div>
     );
   }
@@ -64,14 +64,19 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
 
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error: updateError } = await supabase.auth.updateUser({ password });
 
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
+    if (updateError) {
+      alert(updateError.message);
       return;
     }
 
@@ -96,8 +101,9 @@ export default function ResetPasswordPage() {
                 type="password"
                 value={password}
                 required
+                minLength={6}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full mt-2 px-4 py-3 border rounded-lg"
+                className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
             </div>
 
@@ -109,25 +115,38 @@ export default function ResetPasswordPage() {
                 type="password"
                 value={confirm}
                 required
+                minLength={6}
                 onChange={(e) => setConfirm(e.target.value)}
-                className="w-full mt-2 px-4 py-3 border rounded-lg"
+                className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-black text-white rounded-lg"
+              className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {loading ? "Updating…" : "Update Password"}
             </button>
           </form>
         ) : (
           <p className="text-center text-gray-700">
-            Password updated successfully. Redirecting…
+            ✓ Password updated successfully. Redirecting…
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500 text-sm">Loading…</p>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
