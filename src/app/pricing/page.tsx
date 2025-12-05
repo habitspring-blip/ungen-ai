@@ -168,7 +168,6 @@ export default function PricingPage() {
           {/* BILLING TOGGLE */}
           <div className="mt-4 inline-flex items-center gap-2 p-1 bg-white border border-gray-200 rounded-xl shadow-sm">
             <Button
-              size="sm"
               variant={billingCycle === "monthly" ? "primary" : "subtle"}
               onClick={() => setBillingCycle("monthly")}
             >
@@ -176,7 +175,6 @@ export default function PricingPage() {
             </Button>
 
             <Button
-              size="sm"
               variant={billingCycle === "annual" ? "primary" : "subtle"}
 
               onClick={() => setBillingCycle("annual")}
@@ -263,7 +261,6 @@ export default function PricingPage() {
               {/* CTA */}
               <Button
                 variant={plan.buttonVariant}
-                size="md"
                 className="w-full mb-4"
                 disabled={plan.name !== "Free"}
               >
@@ -304,10 +301,10 @@ export default function PricingPage() {
           </p>
 
           <div className="flex justify-center gap-3">
-            <Button variant="primary" size="md" disabled>
+            <Button variant="primary" disabled>
               Coming Soon
             </Button>
-            <Button variant="subtle" size="md" disabled>
+            <Button variant="subtle" disabled>
               Coming Soon
             </Button>
           </div>

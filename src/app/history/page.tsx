@@ -221,7 +221,6 @@ export default function HistoryPage() {
                   <div className="flex gap-3">
                     <Button
                       variant="subtle"
-                      size="sm"
                       onClick={() =>
                         (window.location.href = `/editor?restore=${encodeURIComponent(
                           item.output_text
@@ -233,7 +232,6 @@ export default function HistoryPage() {
 
                     <Button
                       variant="primary"
-                      size="sm"
                       onClick={() =>
                         navigator.clipboard.writeText(item.output_text)
                       }
