@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-function ResetPasswordForm() {
+export default function ResetPasswordPage() {
   const supabase = createClient();
   const search = useSearchParams();
   const router = useRouter();
 
-  const code = search.get("code");
+  const token = search.get("token"); // token_hash
+  const type = search.get("type");
 
   const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
@@ -17,12 +18,15 @@ function ResetPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Step 1: Exchange reset code for a session
+  // Step 1 — Verify token_hash from Supabase recovery link
   useEffect(() => {
     async function init() {
-      if (!code) return;
+      if (!token || type !== "recovery") return;
 
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      const { error } = await supabase.auth.verifyOtp({
+        type: "recovery",
+        token_hash: token, // ✔ FIXED PARAM
+      });
 
       if (error) {
         console.error(error);
@@ -34,10 +38,9 @@ function ResetPasswordForm() {
     }
 
     init();
-  }, [code]);
+  }, [token, type]);
 
-  // If no token in URL
-  if (!code) {
+  if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-gray-600 text-sm">Invalid or expired reset link.</p>
@@ -45,7 +48,6 @@ function ResetPasswordForm() {
     );
   }
 
-  // While exchanging session
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -54,7 +56,6 @@ function ResetPasswordForm() {
     );
   }
 
-  // Step 2 → Update password once authenticated
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -93,11 +94,10 @@ function ResetPasswordForm() {
               </label>
               <input
                 type="password"
-                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-black focus:border-black outline-none"
-                placeholder="New password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full mt-2 px-4 py-3 border rounded-lg"
               />
             </div>
 
@@ -107,44 +107,27 @@ function ResetPasswordForm() {
               </label>
               <input
                 type="password"
-                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-black focus:border-black outline-none"
-                placeholder="Confirm password"
                 value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
                 required
+                onChange={(e) => setConfirm(e.target.value)}
+                className="w-full mt-2 px-4 py-3 border rounded-lg"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-lg bg-black text-white font-medium transition hover:bg-gray-900 disabled:opacity-40"
+              className="w-full py-3 bg-black text-white rounded-lg"
             >
               {loading ? "Updating…" : "Update Password"}
             </button>
           </form>
         ) : (
-          <p className="text-center text-gray-700 text-base">
-            Password updated successfully.
-            <br />
-            Redirecting…
+          <p className="text-center text-gray-700">
+            Password updated successfully. Redirecting…
           </p>
         )}
-
-        <p className="text-center text-sm mt-6 text-gray-500">
-          <a href="/login" className="underline hover:text-black">
-            Back to Login
-          </a>
-        </p>
       </div>
     </div>
-  );
-}
-
-export default function ResetPasswordPage() {
-  return (
-    <Suspense>
-      <ResetPasswordForm />
-    </Suspense>
   );
 }
