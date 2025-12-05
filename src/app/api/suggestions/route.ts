@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+type ChatMessage = {
+  role: string;
+  content: string;
+};
 
 export async function POST(req: Request) {
   try {
@@ -112,7 +116,7 @@ You CANNOT help with:
           content: systemPrompt
         },
         // Add chat history (excluding the last user message which is already in 'message')
-        ...chatHistory.slice(0, -1).map((msg: any) => ({
+        ...chatHistory.slice(0, -1).map((msg: ChatMessage) => ({
           role: msg.role === 'assistant' ? 'assistant' : 'user',
           content: msg.content
         })),

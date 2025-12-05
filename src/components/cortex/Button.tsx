@@ -1,4 +1,10 @@
-export function CortexButton({ children, ...props }) {
+import { ReactNode, ButtonHTMLAttributes } from 'react';
+
+interface CortexButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+}
+
+export function CortexButton({ children, ...props }: CortexButtonProps) {
   return (
     <button
       {...props}

@@ -3,7 +3,19 @@
 import { useEffect, useState } from "react"
 import { COMMANDS } from "./commands"
 
-export default function CommandPalette({ open, onClose, onSelect }) {
+interface Command {
+  id: string;
+  label: string;
+  type: string;
+}
+
+interface CommandPaletteProps {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (command: Command) => void;
+}
+
+export default function CommandPalette({ open, onClose, onSelect }: CommandPaletteProps) {
   const [query, setQuery] = useState("")
 
   const filtered = COMMANDS.filter(cmd =>

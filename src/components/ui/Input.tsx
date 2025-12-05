@@ -8,8 +8,7 @@ export default function Input({
 }: {
   className?: string;
   variant?: "default" | "subtle" | "underline" | "gradient";
-  [key: string]: any;
-}) {
+} & React.InputHTMLAttributes<HTMLInputElement>) {
   const base =
     "w-full px-3 py-2 text-sm rounded-md transition-all duration-200 ease-premium";
 

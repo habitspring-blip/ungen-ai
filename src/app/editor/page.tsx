@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { saveHistory } from "@/utils/history";
 
 // Mock components
 const Shimmer = () => (
@@ -11,7 +12,11 @@ const Shimmer = () => (
   </div>
 );
 
-const CopyButton = ({ text }) => (
+interface CopyButtonProps {
+  text: string;
+}
+
+const CopyButton = ({ text }: CopyButtonProps) => (
   <button
     onClick={() => navigator.clipboard.writeText(text)}
     className="px-3 py-1 text-xs font-medium text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-lg hover:border-indigo-300 transition-all duration-200"
@@ -26,7 +31,14 @@ const Footer = () => (
   </footer>
 );
 
-const Button = ({ children, className, ...props }) => (
+import { ReactNode, ButtonHTMLAttributes } from 'react';
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+  className?: string;
+}
+
+const Button = ({ children, className, ...props }: ButtonProps) => (
   <button className={className} {...props}>
     {children}
   </button>
@@ -53,6 +65,7 @@ export default function EditorPage() {
   >([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string>("");
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -97,7 +110,17 @@ export default function EditorPage() {
       });
 
       const data = await res.json();
-      if (data.success) setOutput(data.output);
+      if (data.success) {
+        setOutput(data.output);
+        // Save to history when transformation is successful
+        console.log("🔄 Saving transformation to history:", { input: input.substring(0, 50) + "...", output: data.output.substring(0, 50) + "..." });
+        saveHistory(input, data.output);
+        console.log("✅ History saved successfully");
+        
+        // Show visual feedback
+        setSaveStatus("Saved to history!");
+        setTimeout(() => setSaveStatus(""), 3000);
+      }
       else setOutput("Rewrite failed. Please try again.");
     } catch {
       setOutput("Network error. Please check your connection.");
@@ -442,6 +465,9 @@ What would you like to do?`,
                   <span>{input.length} characters</span>
                   {input.trim() && (
                     <span>{input.trim().split(/\s+/).length} words</span>
+                  )}
+                  {saveStatus && (
+                    <span className="text-green-600 font-medium">{saveStatus}</span>
                   )}
                 </div>
 

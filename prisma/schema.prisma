@@ -1,12 +1,10 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["public"]
 }
 
 model User {
@@ -17,10 +15,13 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  rewrites  Rewrite[]
+  rewrites        Rewrite[]
+  aiDetections    AiDetection[]
+  grammarAnalyses GrammarAnalysis[]
+  payments        Payment[]
+  teamMemberships TeamMember[]
 
   @@map("users")
-  @@schema("public")
 }
 
 model Rewrite {
@@ -34,13 +35,134 @@ model Rewrite {
   outputText String   @map("output_text")
   wordCount  Int      @map("word_count")
 
+  // Enhanced features for v2.0
+  aiDetected Boolean  @default(false) @map("ai_detected")
+  grammarScore Float? @map("grammar_score")
+  readabilityScore Float? @map("readability_score")
+  
+  // Processing metadata
+  processingTime Int? @map("processing_time")
+  confidenceScore Float? @map("confidence_score")
+
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("rewrites")
-  @@schema("public")
-
   @@index([userId])
   @@index([userId, createdAt])
   @@index([modelType])
+  @@index([aiDetected])
+}
+
+model AiDetection {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  inputText     String   @map("input_text")
+  isAIGenerated Boolean  @map("is_ai_generated")
+  confidence    Float
+  modelUsed     String   @map("model_used")
+  
+  // Detailed analysis
+  reasoning     Json     // Array of reasoning strings
+  indicators    Json     // Linguistic indicators
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("ai_detections")
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([isAIGenerated])
+  @@index([confidence])
+}
+
+model GrammarAnalysis {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  inputText     String   @map("input_text")
+  errors        Json     // Array of grammar errors
+  suggestions   Json     // Array of suggestions
+  score         Float    // Grammar score 0-100
+  
+  // Enhanced analysis
+  readabilityScore Float? @map("readability_score")
+  complexityLevel  String? @map("complexity_level")
+  toneAnalysis     String? @map("tone_analysis")
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("grammar_analyses")
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([score])
+}
+
+model Payment {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stripeId      String?  @unique @map("stripe_id")
+  amount        Int      // Amount in cents
+  currency      String   @default("usd")
+  status        String   // pending, completed, failed, refunded
+  
+  // Payment details
+  planType      String   @map("plan_type") // free, pro, enterprise
+  creditsAdded  Int      @map("credits_added")
+  
+  metadata      Json?    // Additional payment metadata
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("payments")
+  @@index([userId])
+  @@index([status])
+  @@index([planType])
+  @@index([createdAt])
+}
+
+model Team {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  ownerId       String   @map("owner_id") @db.Uuid
+  
+  // Team settings
+  maxMembers    Int      @default(5) @map("max_members")
+  planType      String   @default("free") @map("plan_type")
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  members       TeamMember[]
+
+  @@map("teams")
+  @@index([ownerId])
+}
+
+model TeamMember {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId        String   @map("team_id") @db.Uuid
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId        String   @map("user_id") @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role          String   @default("member") // owner, admin, member
+  
+  // Usage tracking
+  creditsUsed   Int      @default(0) @map("credits_used")
+  lastActiveAt  DateTime? @map("last_active_at")
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("team_members")
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([role])
 }

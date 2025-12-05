@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react"
 import { COMMANDS } from "./commands"
 
-export default function SlashMenu({ visible, position, onSelect }) {
+interface SlashMenuProps {
+  visible: boolean;
+  position: { top: number; left: number };
+  onSelect: (command: { id: string; label: string; type: string }) => void;
+}
+
+export default function SlashMenu({ visible, position, onSelect }: SlashMenuProps) {
   if (!visible) return null
 
   return (

@@ -1,4 +1,11 @@
-export function CortexPanel({ title, children }) {
+import { ReactNode } from 'react';
+
+interface CortexPanelProps {
+  title: string;
+  children: ReactNode;
+}
+
+export function CortexPanel({ title, children }: CortexPanelProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl shadow-card flex flex-col">
       <div className="px-4 py-2.5 border-b border-gray-100 text-[12px] font-semibold tracking-widest uppercase text-gray-500">

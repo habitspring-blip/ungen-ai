@@ -2,7 +2,13 @@
 
 import { useEffect, useState, useRef } from "react"
 
-export default function FloatingToolbar({ onRewrite, onShorten, onTone }) {
+interface FloatingToolbarProps {
+  onRewrite: () => void;
+  onShorten: () => void;
+  onTone: (tone: string) => void;
+}
+
+export default function FloatingToolbar({ onRewrite, onShorten, onTone }: FloatingToolbarProps) {
   const [visible, setVisible] = useState(false)
   const [coords, setCoords] = useState({ x: 0, y: 0 })
   const ref = useRef(null)

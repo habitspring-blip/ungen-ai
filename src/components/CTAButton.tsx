@@ -1,4 +1,11 @@
-export default function CTAButton({ children, onClick }) {
+import { ReactNode, MouseEventHandler } from 'react';
+
+interface CTAButtonProps {
+  children: ReactNode;
+  onClick: MouseEventHandler<HTMLButtonElement>;
+}
+
+export default function CTAButton({ children, onClick }: CTAButtonProps) {
   return (
     <button
       onClick={onClick}

@@ -496,10 +496,11 @@ export async function POST(req: Request) {
         wordCount: wordCount,
       }
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Rewrite error:', err);
+    const errorMessage = err instanceof Error ? err.message : "Rewrite failed";
     return NextResponse.json(
-      { success: false, error: err.message || "Rewrite failed" },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
