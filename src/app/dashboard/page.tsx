@@ -1,102 +1,177 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
+import PremiumCard from '@/components/ui/PremiumCard';
+import PremiumButton from '@/components/ui/PremiumButton';
+import NavigationItem from '@/components/ui/NavigationItem';
+import { useUser } from '@/context/UserContext';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-// -----------------------------
-// TYPES
-// -----------------------------
-interface Stats {
-  wordsUsed: number;
-  totalRewrites: number;
-  remainingCredits: number;
+interface DashboardStats {
+  totalActivities: number;
+  totalWords: number;
+  recentActivities: Array<{
+    id: string;
+    title: string;
+    type: string;
+    date: string;
+    words: number;
+  }>;
+  planInfo: {
+    name: string;
+    creditsUsed: number;
+    creditsLimit: number;
+    expires: string;
+  };
+  featureHighlights: Array<{
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    link: string;
+  }>;
 }
 
-interface WeeklyUsage {
-  day: string;
-  words: number;
-}
-
-interface ModelUsage {
-  name: string;
-  percentage: number;
-}
-
-interface ActivityItem {
-  title: string;
-  model: string;
-  time: string;
-  words: number;
-}
-
-// -----------------------------
-// COMPONENT
-// -----------------------------
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [weeklyData, setWeeklyData] = useState<WeeklyUsage[]>([]);
-  const [modelUsage, setModelUsage] = useState<ModelUsage[]>([]);
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [quickAction, setQuickAction] = useState<'rewrite' | 'ai-detect' | 'grammar' | null>(null);
+
+  const { user } = useUser();
+  const router = useRouter();
 
   useEffect(() => {
-    fetchDashboardData();
-
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
+    if (!user) {
+      router.push('/login');
+    } else {
       fetchDashboardData();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
+    }
+  }, [user, router]);
 
   const fetchDashboardData = async () => {
     try {
-      // Don't show loading spinner on background refreshes
-      if (stats === null) {
-        setLoading(true);
-      }
+      setLoading(true);
       setError(null);
 
-      const [statsRes, weeklyRes, modelsRes, activityRes] = await Promise.all([
-        fetch("/api/dashboard/stats", { cache: 'no-store' }),
-        fetch("/api/dashboard/weekly", { cache: 'no-store' }),
-        fetch("/api/dashboard/models", { cache: 'no-store' }),
-        fetch("/api/dashboard/activity", { cache: 'no-store' }),
+      // Fetch data from multiple endpoints
+      const [statsResponse, historyResponse, paymentsResponse] = await Promise.all([
+        fetch('/api/dashboard/stats'),
+        fetch('/api/history'),
+        fetch('/api/payments/create-checkout')
       ]);
 
-      if (!statsRes.ok || !weeklyRes.ok || !modelsRes.ok || !activityRes.ok) {
-        throw new Error("Failed to fetch dashboard data");
+      const [statsData, historyData, paymentsData] = await Promise.all([
+        statsResponse.json(),
+        historyResponse.json(),
+        paymentsResponse.json()
+      ]);
+
+      // Combine and format data
+      const dashboardData: DashboardStats = {
+        totalActivities: statsData.totalActivities || 0,
+        totalWords: statsData.totalWords || 0,
+        recentActivities: [],
+        planInfo: {
+          name: paymentsData.plan || 'Free',
+          creditsUsed: statsData.creditsUsed || 0,
+          creditsLimit: statsData.creditsLimit || 1000,
+          expires: paymentsData.expires || 'Never'
+        },
+        featureHighlights: [
+          {
+            title: 'AI Detection',
+            description: 'Advanced AI content detection using multiple models',
+            icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            ),
+            link: '/ai-detection'
+          },
+          {
+            title: 'Content Rewrite',
+            description: 'Transform your writing with advanced AI models',
+            icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            ),
+            link: '/editor'
+          },
+          {
+            title: 'Grammar Check',
+            description: 'Comprehensive grammar and style analysis',
+            icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ),
+            link: '/editor'
+          },
+          {
+            title: 'Activity History',
+            description: 'View all your past activities and results',
+            icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            ),
+            link: '/history'
+          }
+        ]
+      };
+
+      // Add recent activities from history
+      if (historyData.success && historyData.history) {
+        dashboardData.recentActivities = historyData.history.slice(0, 5).map((item: { id: string; title?: string; type?: string; createdAt: string; words?: number }) => ({
+          id: item.id,
+          title: item.title || 'Untitled Activity',
+          type: item.type || 'unknown',
+          date: item.createdAt,
+          words: item.words || 0
+        }));
       }
 
-      const [statsData, weeklyDataRes, modelsData, activityData] =
-        await Promise.all([
-          statsRes.json(),
-          weeklyRes.json(),
-          modelsRes.json(),
-          activityRes.json(),
-        ]);
-
-      setStats(statsData || null);
-      setWeeklyData(Array.isArray(weeklyDataRes) ? weeklyDataRes : []);
-      setModelUsage(Array.isArray(modelsData) ? modelsData : []);
-      setRecentActivity(Array.isArray(activityData) ? activityData : []);
+      setStats(dashboardData);
     } catch (err) {
-      console.error("Dashboard error:", err);
-      setError(err instanceof Error ? err.message : "Unexpected error");
+      console.error('Dashboard error:', err);
+      setError('Failed to load dashboard data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const maxWords =
-    weeklyData.length > 0
-      ? Math.max(...weeklyData.map((d) => d.words))
-      : 0;
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      'rewrite': 'Content Rewrite',
+      'ai-detection': 'AI Detection',
+      'grammar': 'Grammar Check',
+      'unknown': 'Activity'
+    };
+    return labels[type] || type;
+  };
 
-  // -----------------------------
-  // LOADING UI
-  // -----------------------------
+  const getTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      'rewrite': 'bg-indigo-100 text-indigo-700',
+      'ai-detection': 'bg-purple-100 text-purple-700',
+      'grammar': 'bg-emerald-100 text-emerald-700',
+      'unknown': 'bg-slate-100 text-slate-700'
+    };
+    return colors[type] || 'bg-slate-100 text-slate-700';
+  };
+
+  const handleQuickAction = (action: 'rewrite' | 'ai-detect' | 'grammar') => {
+    setQuickAction(action);
+    // Navigate to appropriate page
+    if (action === 'ai-detect') {
+      router.push('/ai-detection');
+    } else {
+      router.push('/editor');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAFAFA]">
@@ -112,211 +187,369 @@ export default function DashboardPage() {
     );
   }
 
-  // -----------------------------
-  // ERROR UI
-  // -----------------------------
   if (error) {
     return (
       <div className="min-h-screen bg-[#FAFAFA]">
         <div className="max-w-[1400px] mx-auto px-8 py-12">
-          <div className="bg-white rounded-2xl border-2 border-red-500/20 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border-2 border-red-500/20 p-6 shadow-sm max-w-md mx-auto">
             <h3 className="text-lg font-semibold text-red-600 mb-2">
               Error Loading Dashboard
             </h3>
             <p className="text-slate-600 mb-4">{error}</p>
-            <button
-              onClick={fetchDashboardData}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold shadow-md hover:shadow-lg transition"
-            >
+            <PremiumButton onClick={fetchDashboardData} size="md">
               Retry
-            </button>
+            </PremiumButton>
           </div>
         </div>
       </div>
     );
   }
 
-  // -----------------------------
-  // MAIN UI
-  // -----------------------------
-  return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      <div className="max-w-[1400px] mx-auto px-8 py-12">
-        
-        {/* Header */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
-                Dashboard
-              </h1>
-              <p className="text-slate-600 text-sm mt-1">
-                Your activity at a glance • Auto-refreshes every 30s
-              </p>
-            </div>
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA]">
+        <div className="max-w-[1400px] mx-auto px-8 py-12">
+          <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 shadow-sm max-w-md mx-auto">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              No Dashboard Data
+            </h3>
+            <p className="text-slate-600 mb-4">Your dashboard will appear here once you start using the platform.</p>
+            <PremiumButton onClick={() => router.push('/editor')} size="md">
+              Start Writing
+            </PremiumButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            <button
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+            <p className="text-slate-600 mt-1">
+              Welcome back, {user?.name || 'User'}! Here's your activity overview
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <PremiumButton
               onClick={fetchDashboardData}
-              className="px-4 py-2 text-sm text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-lg hover:border-indigo-300 transition"
+              variant="secondary"
+              size="sm"
             >
               🔄 Refresh
+            </PremiumButton>
+            <PremiumButton
+              onClick={() => router.push('/settings')}
+              size="sm"
+            >
+              Settings
+            </PremiumButton>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <PremiumCard
+          title="Total Activities"
+          gradient="from-indigo-50 to-purple-50"
+        >
+          <div className="text-3xl font-bold text-slate-900">
+            {stats.totalActivities.toLocaleString()}
+          </div>
+          <div className="text-sm text-slate-500 mt-1">
+            {stats.totalActivities > 0 ? (
+              <>Across all features</>
+            ) : (
+              <>Get started with your first activity</>
+            )}
+          </div>
+        </PremiumCard>
+
+        <PremiumCard
+          title="Total Words"
+          gradient="from-emerald-50 to-teal-50"
+        >
+          <div className="text-3xl font-bold text-slate-900">
+            {stats.totalWords.toLocaleString()}
+          </div>
+          <div className="text-sm text-slate-500 mt-1">
+            Processed across all activities
+          </div>
+        </PremiumCard>
+
+        <PremiumCard
+          title="Current Plan"
+          gradient="from-amber-50 to-orange-50"
+        >
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-slate-900">{stats.planInfo.name}</span>
+              <span className={`text-sm font-medium ${
+                stats.planInfo.name === 'Free' ? 'text-slate-500' :
+                stats.planInfo.name === 'Pro' ? 'text-indigo-600' : 'text-purple-600'
+              }`}>
+                {stats.planInfo.name === 'Free' ? 'Free' :
+                 stats.planInfo.name === 'Pro' ? 'Pro' : 'Enterprise'}
+              </span>
+            </div>
+
+            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full transition-all"
+                style={{
+                  width: `${Math.min((stats.planInfo.creditsUsed / stats.planInfo.creditsLimit) * 100, 100)}%`
+                }}
+              />
+            </div>
+
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>{stats.planInfo.creditsUsed.toLocaleString()} used</span>
+              <span>{stats.planInfo.creditsLimit.toLocaleString()} limit</span>
+            </div>
+
+            {stats.planInfo.name === 'Free' && (
+              <PremiumButton
+                onClick={() => router.push('/pricing')}
+                size="sm"
+                className="w-full mt-3"
+              >
+                Upgrade Plan
+              </PremiumButton>
+            )}
+          </div>
+        </PremiumCard>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-slate-900">Quick Actions</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleQuickAction('rewrite')}
+              className={`px-3 py-1 text-sm font-medium rounded-lg transition ${
+                quickAction === 'rewrite'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Rewrite
+            </button>
+            <button
+              onClick={() => handleQuickAction('ai-detect')}
+              className={`px-3 py-1 text-sm font-medium rounded-lg transition ${
+                quickAction === 'ai-detect'
+                  ? 'bg-purple-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              AI Detect
+            </button>
+            <button
+              onClick={() => handleQuickAction('grammar')}
+              className={`px-3 py-1 text-sm font-medium rounded-lg transition ${
+                quickAction === 'grammar'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Grammar
             </button>
           </div>
         </div>
 
-        {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-
-            {/* Words Used */}
-            <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 relative overflow-hidden shadow-sm">
-              <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-indigo-600 to-pink-500" />
-              <div className="relative z-10">
-                <div className="text-sm text-slate-600">Words Used</div>
-                <div className="text-3xl font-semibold mt-1 bg-gradient-to-r from-indigo-600 to-pink-500 bg-clip-text text-transparent">
-                  {stats.wordsUsed.toLocaleString()}
-                </div>
-                <div className="text-slate-500 text-xs mt-1">This month</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <PremiumCard
+            title="Content Rewrite"
+            subtitle="Transform your writing"
+            gradient="from-indigo-50 to-purple-50"
+            actions={
+              <PremiumButton
+                onClick={() => handleQuickAction('rewrite')}
+                size="sm"
+              >
+                Start Rewrite
+              </PremiumButton>
+            }
+          >
+            <div className="text-center py-8">
+              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
+              <p className="text-sm text-slate-600">Enhance your writing with AI</p>
             </div>
+          </PremiumCard>
 
-            {/* Rewrites */}
-            <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 relative overflow-hidden shadow-sm">
-              <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-emerald-600 to-teal-500" />
-              <div className="relative z-10">
-                <div className="text-sm text-slate-600">Rewrites</div>
-                <div className="text-3xl font-semibold mt-1 bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-                  {stats.totalRewrites.toLocaleString()}
-                </div>
-                <div className="text-slate-500 text-xs mt-1">Total generated</div>
+          <PremiumCard
+            title="AI Detection"
+            subtitle="Detect AI content"
+            gradient="from-purple-50 to-indigo-50"
+            actions={
+              <PremiumButton
+                onClick={() => handleQuickAction('ai-detect')}
+                size="sm"
+              >
+                Detect AI
+              </PremiumButton>
+            }
+          >
+            <div className="text-center py-8">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </div>
+              <p className="text-sm text-slate-600">Analyze content for AI generation</p>
             </div>
+          </PremiumCard>
 
-            {/* Credits */}
-            <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 relative overflow-hidden shadow-sm">
-              <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-amber-500 to-orange-500" />
-              <div className="relative z-10">
-                <div className="text-sm text-slate-600">Remaining Credits</div>
-                <div className="text-3xl font-semibold mt-1 bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-                  {stats.remainingCredits.toLocaleString()}
-                </div>
-                <div className="text-slate-500 text-xs mt-1">Across all models</div>
+          <PremiumCard
+            title="Grammar Check"
+            subtitle="Improve your writing"
+            gradient="from-emerald-50 to-teal-50"
+            actions={
+              <PremiumButton
+                onClick={() => handleQuickAction('grammar')}
+                size="sm"
+              >
+                Check Grammar
+              </PremiumButton>
+            }
+          >
+            <div className="text-center py-8">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
+              <p className="text-sm text-slate-600">Comprehensive grammar analysis</p>
             </div>
+          </PremiumCard>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-slate-900">Recent Activity</h2>
+          <Link href="/history" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+            View All →
+          </Link>
+        </div>
+
+        {stats.recentActivities.length > 0 ? (
+          <div className="space-y-3">
+            {stats.recentActivities.map((activity) => (
+              <div
+                key={activity.id}
+                className="p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition cursor-pointer"
+                onClick={() => router.push('/history')}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(activity.type)}`}>
+                        {getTypeLabel(activity.type)}
+                      </span>
+                      <span className="font-medium text-slate-900 truncate">
+                        {activity.title}
+                      </span>
+                    </div>
+                    <div className="text-sm text-slate-500">
+                      {activity.words.toLocaleString()} words • {new Date(activity.date).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+        ) : (
+          <PremiumCard title="No Recent Activities" gradient="from-slate-50 to-slate-100">
+            <div className="text-center py-8 text-slate-400">
+              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-sm">No recent activities yet</p>
+              <p className="text-xs mt-1">Your activities will appear here</p>
+            </div>
+          </PremiumCard>
         )}
+      </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-          
-          {/* Weekly usage */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border-2 border-slate-300 p-6 shadow-sm">
-            <div className="flex justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Weekly Usage
-                </h2>
-                <p className="text-sm text-slate-600">
-                  Words processed over last 7 days
-                </p>
-              </div>
-            </div>
+      {/* Feature Highlights */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-slate-900 mb-4">Feature Highlights</h2>
 
-            {weeklyData.length > 0 ? (
-              <div className="flex items-end gap-3 h-48">
-                {weeklyData.map((d) => {
-                  const height = maxWords ? (d.words / maxWords) * 100 : 0;
-
-                  return (
-                    <div key={d.day} className="flex-1 flex flex-col items-center group">
-                      <div className="relative w-full">
-                        <div
-                          className="w-full bg-gradient-to-t from-indigo-600/30 to-pink-500/30 rounded-t-md transition-all duration-200 group-hover:shadow-lg"
-                          style={{ height: `${height * 1.92}px` }}
-                        />
-                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                          {d.words.toLocaleString()} words
-                        </div>
-                      </div>
-                      <span className="text-xs text-slate-600 mt-2">{d.day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="h-48 flex items-center justify-center text-slate-500">
-                No usage data available yet.
-              </div>
-            )}
-          </div>
-
-          {/* Model usage */}
-          <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900 mb-6">
-              Model Usage
-            </h2>
-
-            {modelUsage.length > 0 ? (
-              modelUsage.map((m) => (
-                <div key={m.name} className="mb-5">
-                  <div className="flex justify-between text-sm text-slate-900 mb-1">
-                    <span>{m.name}</span>
-                    <span>{m.percentage}%</span>
-                  </div>
-
-                  <div className="w-full h-2 bg-slate-200 rounded-md overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-indigo-600 to-pink-500 rounded-md transition-all duration-300"
-                      style={{ width: `${m.percentage}%` }}
-                    />
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.featureHighlights.map((feature, index) => (
+            <div
+              key={index}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => router.push(feature.link)}
+            >
+              <PremiumCard
+                title={feature.title}
+                subtitle={feature.description}
+                gradient="from-white to-slate-50"
+              >
+              <div className="text-center py-4">
+                <div className="w-8 h-8 mx-auto mb-2 text-indigo-600">
+                  {feature.icon}
                 </div>
-              ))
-            ) : (
-              <div className="text-center text-slate-500 py-8 text-sm">
-                No usage data yet
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Recent activity */}
-        <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 shadow-sm">
-          <div className="flex justify-between mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Recent Activity
-            </h2>
-            <button className="px-3 py-1 text-xs font-medium text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-lg hover:border-indigo-300 transition">
-              View All
-            </button>
-          </div>
-
-          {recentActivity.length > 0 ? (
-            <div className="space-y-4">
-              {recentActivity.map((item, i) => (
-                <div
-                  key={i}
-                  className="p-4 border border-slate-200 rounded-md hover:bg-slate-50 transition"
+                <PremiumButton
+                  variant="text"
+                  size="sm"
+                  className="mt-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(feature.link);
+                  }}
                 >
-                  <div className="flex justify-between">
-                    <div className="font-medium text-slate-900">
-                      {item.title}
-                    </div>
-                    <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded">
-                      {item.model}
-                    </span>
-                  </div>
-                  <div className="text-sm text-slate-600 mt-1">
-                    {item.time} • {item.words} words
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-slate-500 py-8 text-sm">
-              No recent activity yet
-            </div>
-          )}
+                  Explore →
+                </PremiumButton>
+              </div>
+            </PremiumCard>
+          </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Navigation */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-slate-900 mb-4">Quick Navigation</h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <NavigationItem href="/editor" icon="✍️">
+            Editor
+          </NavigationItem>
+          <NavigationItem href="/ai-detection" icon="🔍">
+            AI Detection
+          </NavigationItem>
+          <NavigationItem href="/history" icon="📊">
+            History
+          </NavigationItem>
+          <NavigationItem href="/pricing" icon="💰">
+            Pricing
+          </NavigationItem>
+          <NavigationItem href="/settings" icon="⚙️">
+            Settings
+          </NavigationItem>
+          <NavigationItem href="/tools" icon="🧰">
+            Tools
+          </NavigationItem>
+          <NavigationItem href="/dashboard" icon="🏠">
+            Dashboard
+          </NavigationItem>
         </div>
       </div>
     </div>
