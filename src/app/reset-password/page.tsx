@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-
 import { useState, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -19,7 +17,7 @@ function ResetPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Step 1: Exchange reset code for supabase session
+  // Step 1: Exchange reset code for a session
   useEffect(() => {
     async function init() {
       if (!code) return;
@@ -36,9 +34,9 @@ function ResetPasswordForm() {
     }
 
     init();
-  }, [code, supabase]);
+  }, [code]);
 
-  // Invalid link UI
+  // If no token in URL
   if (!code) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -47,7 +45,7 @@ function ResetPasswordForm() {
     );
   }
 
-  // Loading while exchanging session
+  // While exchanging session
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -56,7 +54,7 @@ function ResetPasswordForm() {
     );
   }
 
-  // Step 2: Update password
+  // Step 2 → Update password once authenticated
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
