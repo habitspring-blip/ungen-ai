@@ -15,6 +15,7 @@ function ResetPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Verify the user has an active session from the recovery link
   useEffect(() => {
@@ -58,14 +59,15 @@ function ResetPasswordForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setFormError(null);
 
-    if (password !== confirm) {
-      alert("Passwords do not match");
+    if (password.length < 6) {
+      setFormError("Password must be at least 6 characters long");
       return;
     }
 
-    if (password.length < 6) {
-      alert("Password must be at least 6 characters");
+    if (password !== confirm) {
+      setFormError("Passwords do not match");
       return;
     }
 
@@ -76,7 +78,7 @@ function ResetPasswordForm() {
     setLoading(false);
 
     if (updateError) {
-      alert(updateError.message);
+      setFormError(updateError.message);
       return;
     }
 
@@ -93,6 +95,12 @@ function ResetPasswordForm() {
 
         {!done ? (
           <form onSubmit={handleSubmit} className="space-y-5">
+            {formError && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-900">{formError}</p>
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium text-gray-700">
                 New Password
@@ -102,9 +110,13 @@ function ResetPasswordForm() {
                 value={password}
                 required
                 minLength={6}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFormError(null);
+                }}
                 className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
+              <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
             </div>
 
             <div>
@@ -116,7 +128,10 @@ function ResetPasswordForm() {
                 value={confirm}
                 required
                 minLength={6}
-                onChange={(e) => setConfirm(e.target.value)}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                  setFormError(null);
+                }}
                 className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
             </div>
@@ -130,9 +145,14 @@ function ResetPasswordForm() {
             </button>
           </form>
         ) : (
-          <p className="text-center text-gray-700">
-            ✓ Password updated successfully. Redirecting…
-          </p>
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-center text-green-900 font-medium">
+              Password updated successfully
+            </p>
+            <p className="text-center text-green-700 text-sm mt-1">
+              Redirecting to login...
+            </p>
+          </div>
         )}
       </div>
     </div>
