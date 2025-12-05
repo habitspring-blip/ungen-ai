@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  Suspense,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,7 +30,8 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | null>(null);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
+// Inner component that uses useSearchParams
+function UserProviderInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = createClient();
   const params = useSearchParams();
@@ -128,6 +130,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
     </UserContext.Provider>
+  );
+}
+
+// Outer component that wraps the inner one in Suspense
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <UserProviderInner>{children}</UserProviderInner>
+    </Suspense>
   );
 }
 
