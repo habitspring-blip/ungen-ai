@@ -1,12 +1,11 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = false;
-
-
 import { useState, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+
+export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 function ResetPasswordForm() {
   const supabase = createClient();
@@ -21,7 +20,6 @@ function ResetPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  // STEP 1 → Exchange reset code for Supabase session
   useEffect(() => {
     async function init() {
       if (!code) return;
@@ -38,9 +36,8 @@ function ResetPasswordForm() {
     }
 
     init();
-  }, [code, supabase]);
+  }, [code]);
 
-  // Invalid link UI
   if (!code) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -49,7 +46,6 @@ function ResetPasswordForm() {
     );
   }
 
-  // Loading while exchanging session
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -58,7 +54,6 @@ function ResetPasswordForm() {
     );
   }
 
-  // STEP 2 → Update password (now authenticated)
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -97,8 +92,7 @@ function ResetPasswordForm() {
               </label>
               <input
                 type="password"
-                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-black focus:border-black outline-none"
-                placeholder="New password"
+                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -111,8 +105,7 @@ function ResetPasswordForm() {
               </label>
               <input
                 type="password"
-                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-black focus:border-black outline-none"
-                placeholder="Confirm password"
+                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
@@ -122,7 +115,7 @@ function ResetPasswordForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-lg bg-black text-white font-medium transition hover:bg-gray-900 disabled:opacity-40"
+              className="w-full py-3 rounded-lg bg-black text-white font-medium"
             >
               {loading ? "Updating…" : "Update Password"}
             </button>
