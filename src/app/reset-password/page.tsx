@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { validatePassword, getPasswordRequirementsText } from "@/lib/auth/password-requirements";
 
 function ResetPasswordForm() {
   const supabase = createClient();
@@ -34,14 +35,15 @@ function ResetPasswordForm() {
     checkSession();
   }, [supabase]);
 
-  // Derive validation error from current state (no useEffect needed!)
+  // Derive validation error from current state - real-time validation
   const formError = (() => {
     if (!passwordTouched && !confirmTouched) {
       return null;
     }
 
-    if (passwordTouched && password.length > 0 && password.length < 6) {
-      return "Password must be at least 6 characters long";
+    if (passwordTouched && password.length > 0) {
+      const passwordError = validatePassword(password);
+      if (passwordError) return passwordError;
     }
 
     if (confirmTouched && confirm.length > 0 && password !== confirm) {
@@ -79,14 +81,17 @@ function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     
+    // Mark fields as touched for validation
+    setPasswordTouched(true);
+    setConfirmTouched(true);
+
     // Final validation on submit
-    if (password.length < 6) {
-      setPasswordTouched(true);
+    const passwordError = validatePassword(password);
+    if (passwordError) {
       return;
     }
 
     if (password !== confirm) {
-      setConfirmTouched(true);
       return;
     }
 
@@ -129,12 +134,13 @@ function ResetPasswordForm() {
                 type="password"
                 value={password}
                 required
-                minLength={6}
                 onChange={(e) => setPassword(e.target.value)}
                 onBlur={() => setPasswordTouched(true)}
                 className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
               />
-              <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {getPasswordRequirementsText()}
+              </p>
             </div>
 
             <div>
@@ -145,7 +151,6 @@ function ResetPasswordForm() {
                 type="password"
                 value={confirm}
                 required
-                minLength={6}
                 onChange={(e) => setConfirm(e.target.value)}
                 onBlur={() => setConfirmTouched(true)}
                 className="w-full mt-2 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
