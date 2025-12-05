@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -9,13 +9,35 @@ function ResetPasswordForm() {
   const search = useSearchParams();
   const router = useRouter();
 
-  const token = search.get("code");
+  const code = search.get("code");
+
+  const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  if (!token) {
+  // STEP 1 → Exchange reset code for Supabase session
+  useEffect(() => {
+    async function init() {
+      if (!code) return;
+
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        console.error(error);
+        alert("Reset link is invalid or expired.");
+        return;
+      }
+
+      setReady(true);
+    }
+
+    init();
+  }, [code, supabase]);
+
+  // Invalid link UI
+  if (!code) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-gray-600 text-sm">Invalid or expired reset link.</p>
@@ -23,6 +45,16 @@ function ResetPasswordForm() {
     );
   }
 
+  // Loading while exchanging session
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500 text-sm">Validating reset link…</p>
+      </div>
+    );
+  }
+
+  // STEP 2 → Update password (now authenticated)
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
