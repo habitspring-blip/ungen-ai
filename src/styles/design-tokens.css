@@ -131,7 +131,7 @@
 :focus-visible {
   outline: 2px solid var(--brand-indigo-start);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px var(--brand-indigo-start / 0.1);
+  box-shadow: 0 0 0 4px rgba(var(--brand-indigo-start), 0.1);
 }
 
 /* Premium Form Elements */
@@ -145,7 +145,7 @@
 
 .input-premium:focus {
   border-color: var(--brand-indigo-start);
-  box-shadow: 0 0 0 3px var(--brand-indigo-start / 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--brand-indigo-start), 0.1);
   outline: none;
 }
 
@@ -171,7 +171,7 @@
 
 .status-active {
   background-color: var(--accent-emerald);
-  box-shadow: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--accent-emerald / 0.2);
+  box-shadow: 0 0 0 2px var(--surface-0), 0 0 0 4px rgba(var(--accent-emerald), 0.2);
 }
 
 .status-inactive {
