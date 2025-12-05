@@ -1,154 +1,118 @@
-"use client"
+"use client";
 
-import { useState, useEffect, Suspense } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 function ResetPasswordForm() {
-  const supabase = createClient()
-  const params = useSearchParams()
-  const router = useRouter()
+  const supabase = createClient();
+  const search = useSearchParams();
+  const router = useRouter();
 
-  const accessToken = params.get("access_token")
+  const token = search.get("code");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const [password, setPassword] = useState("")
-  const [confirm, setConfirm] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [ready, setReady] = useState(false)
-  const [done, setDone] = useState(false)
-
-  // Ensure token exists
-  useEffect(() => {
-    if (!accessToken) return
-    setReady(true)
-  }, [accessToken])
-
-  if (!accessToken) {
+  if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-1">
-        <div className="text-ink-1 text-sm">Invalid or expired reset link.</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600 text-sm">Invalid or expired reset link.</p>
       </div>
-    )
+    );
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+    e.preventDefault();
 
     if (password !== confirm) {
-      alert("Passwords do not match.")
-      return
+      alert("Passwords do not match");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
-    // Update the password
-    const { error } = await supabase.auth.updateUser({
-      password,
-    })
+    const { error } = await supabase.auth.updateUser({ password });
 
-    setLoading(false)
+    setLoading(false);
 
     if (error) {
-      alert(error.message)
-      return
+      alert(error.message);
+      return;
     }
 
-    setDone(true)
-
-    setTimeout(() => {
-      router.push("/login")
-    }, 1500)
-  }
-
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-1">
-        <div className="animate-pulse text-sm text-ink-2">Loading…</div>
-      </div>
-    )
+    setDone(true);
+    setTimeout(() => router.push("/login"), 1500);
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-1">
-      <div
-        className="
-          w-full max-w-md p-10 bg-surface-0 rounded-xl 
-          shadow-depth border border-surface-2
-        "
-      >
-        <h1 className="text-2xl font-semibold text-ink-0 text-center mb-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-8 border border-gray-200">
+        <h1 className="text-2xl font-semibold text-gray-900 text-center mb-6">
           Reset Your Password
         </h1>
 
         {!done ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                New Password
+              </label>
+              <input
+                type="password"
+                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-black focus:border-black outline-none"
+                placeholder="New password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-            <input
-              type="password"
-              className="
-                w-full px-4 py-3 rounded-md text-sm
-                bg-surface-0 border border-surface-3 text-ink-0
-                placeholder-ink-2
-                focus:ring-2 focus:ring-accent/20 focus:border-accent
-              "
-              placeholder="New password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-
-            <input
-              type="password"
-              className="
-                w-full px-4 py-3 rounded-md text-sm
-                bg-surface-0 border border-surface-3 text-ink-0
-                placeholder-ink-2
-                focus:ring-2 focus:ring-accent/20 focus:border-accent
-              "
-              placeholder="Confirm password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-            />
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-black focus:border-black outline-none"
+                placeholder="Confirm password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+              />
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="
-                w-full py-3 rounded-md font-medium text-white
-                bg-ink-0 hover:bg-ink-1 transition
-                disabled:opacity-40
-              "
+              className="w-full py-3 rounded-lg bg-black text-white font-medium transition hover:bg-gray-900 disabled:opacity-40"
             >
               {loading ? "Updating…" : "Update Password"}
             </button>
           </form>
         ) : (
-          <p className="text-center text-base text-ink-1">
+          <p className="text-center text-gray-700 text-base">
             Password updated successfully.
             <br />
-            Redirecting to login…
+            Redirecting…
           </p>
         )}
 
-        <p className="text-center text-sm mt-6 text-ink-2">
-          <a href="/login" className="underline">
+        <p className="text-center text-sm mt-6 text-gray-500">
+          <a href="/login" className="underline hover:text-black">
             Back to Login
           </a>
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-surface-1">
-        <div className="animate-pulse text-sm text-ink-2">Loading…</div>
-      </div>
-    }>
+    <Suspense>
       <ResetPasswordForm />
     </Suspense>
-  )
+  );
 }
