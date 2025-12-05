@@ -7,11 +7,17 @@ import { prisma } from '@/lib/prisma';
 // STRIPE WEBHOOK HANDLER - PAYMENT PROCESSING
 // -------------------------------------------------------
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-});
-
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+// Lazy Stripe initialization to avoid build-time errors
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not configured');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-11-17.clover',
+  });
+}
 
 // Handle different Stripe events
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
@@ -78,6 +84,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       return;
     }
 
+    const stripe = getStripe();
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     const customer = await stripe.customers.retrieve(customerId as string);
     
@@ -147,6 +154,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
 async function handleCustomerSubscriptionDeleted(subscription: Stripe.Subscription) {
   try {
+    const stripe = getStripe();
     const customer = await stripe.customers.retrieve(subscription.customer as string);
     
     // Find user by customer email
@@ -246,6 +254,7 @@ export async function POST(req: Request) {
     let event: Stripe.Event;
 
     try {
+      const stripe = getStripe();
       event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
@@ -301,6 +310,7 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     // List recent events for debugging
+    const stripe = getStripe();
     const events = await stripe.events.list({
       limit: 10,
     });
@@ -308,7 +318,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       message: 'Webhook endpoint is working',
-      recentEvents: events.data.map(event => ({
+      recentEvents: events.data.map((event: Stripe.Event) => ({
         id: event.id,
         type: event.type,
         created: new Date(event.created * 1000).toISOString()

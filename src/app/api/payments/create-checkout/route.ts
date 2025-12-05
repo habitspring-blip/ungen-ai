@@ -7,12 +7,18 @@ import Stripe from 'stripe';
 // ADVANCED PAYMENT SYSTEM - SUPERIOR TO QUILLBOT
 // -------------------------------------------------------
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-});
-
 const _CF_API_KEY = process.env.CLOUDFLARE_API_KEY || process.env.CLOUDFLARE_API_TOKEN;
 const _CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+
+// Lazy Stripe initialization to avoid build-time errors
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not configured');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-11-17.clover',
+  });
+}
 
 // Enhanced pricing plans
 const PRICING_PLANS = {
@@ -138,6 +144,7 @@ async function createStripeCheckout(
       }
       
       // Create Stripe coupon
+      const stripe = getStripe();
       const stripeCoupon = await stripe.coupons.create({
         percent_off: couponValidation.discount,
         duration: 'once',
@@ -156,6 +163,7 @@ async function createStripeCheckout(
       coupon: coupon || 'none'
     };
 
+    const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -212,6 +220,7 @@ async function createCreditTopupCheckout(
     const pricePerThousand = 20; // $0.02 in cents
     const amount = Math.ceil(credits / 1000) * pricePerThousand;
 
+    const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -314,17 +323,17 @@ export async function POST(req: Request) {
       coupon
     );
 
-    // Log payment attempt
+    // Log payment attempt (temporarily disabled - Payment model not in schema)
     try {
-      await prisma.payment.create({
-        data: {
-          userId: user.id,
-          amount: result.sessionId ? 0 : 0, // Will be updated by webhook
-          status: 'pending',
-          planType: plan,
-          creditsAdded: calculatePricing(plan, billingCycle, teamSize).credits
-        }
-      });
+      // await prisma.payment.create({
+      //   data: {
+      //     userId: user.id,
+      //     amount: result.sessionId ? 0 : 0, // Will be updated by webhook
+      //     status: 'pending',
+      //     planType: plan,
+      //     creditsAdded: calculatePricing(plan, billingCycle, teamSize).credits
+      //   }
+      // });
     } catch (dbError) {
       console.error('Failed to log payment attempt:', dbError);
     }
@@ -373,12 +382,8 @@ export async function GET(req: Request) {
       }, { status: 404 });
     }
 
-    // Get payment history
-    const paymentHistory = await prisma.payment.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 10
-    });
+    // Get payment history (temporarily disabled - Payment model not in schema)
+    const paymentHistory: Array<{id: string, amount: number, status: string, planType: string, createdAt: string}> = [];
 
     // Get current subscription (if any)
     // This would typically come from Stripe webhook data
