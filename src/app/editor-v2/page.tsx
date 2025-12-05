@@ -49,11 +49,7 @@ export default function EditorV2Page() {
     }
   }, [input]);
 
-  // Update word count in real-time
-  useEffect(() => {
-    const words = input.trim().split(/\s+/).filter(w => w.length > 0);
-    setWordCount(words.length);
-  }, [input]);
+  // Word count updated directly in input change handler
 
   async function performRealTimeAnalysis() {
     try {
@@ -293,7 +289,7 @@ export default function EditorV2Page() {
             </div>
 
             {/* Suggestions */}
-            {analysisResults.grammarAnalysis?.suggestions?.length > 0 && (
+            {analysisResults.grammarAnalysis?.suggestions && analysisResults.grammarAnalysis.suggestions.length > 0 && (
               <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
                 <h3 className="font-semibold text-gray-900 mb-2">Suggestions</h3>
                 <ul className="space-y-1 text-sm text-gray-700">
@@ -457,7 +453,11 @@ export default function EditorV2Page() {
                     : "Start writing or paste your text here..."
                 }
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  const words = e.target.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+                  setWordCount(words);
+                }}
                 className="w-full h-full p-6 resize-none border-none outline-none text-gray-900 placeholder-gray-400"
                 style={{ minHeight: '500px' }}
               />
