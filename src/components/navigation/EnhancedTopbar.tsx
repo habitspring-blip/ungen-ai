@@ -12,6 +12,7 @@ export default function EnhancedTopbar() {
   const { user } = useUser();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Main navigation items
   const mainNavItems = [
@@ -38,6 +39,17 @@ export default function EnhancedTopbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Bar */}
         <div className="flex items-center justify-between h-16">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="md:hidden p-2 text-slate-400 hover:text-slate-600 transition"
+            aria-label="Open mobile menu"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           {/* Logo and Main Navigation */}
           <div className="flex items-center gap-8">
             {/* Logo */}
@@ -185,6 +197,104 @@ export default function EnhancedTopbar() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Navigation Drawer */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          {/* Drawer */}
+          <div className="absolute left-0 top-0 h-full w-80 bg-white shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <span className="text-lg font-semibold text-slate-900">Menu</span>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <nav className="p-4">
+              <div className="space-y-2">
+                {/* Main Navigation */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Main</h3>
+                  {mainNavItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition ${
+                        pathname === item.href
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Feature Navigation */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Features</h3>
+                  {featureNavItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition ${
+                        pathname === item.href
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'text-slate-600 hover:text-purple-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Tools Dropdown */}
+                <div className="mb-6">
+                  <ToolsDropdown />
+                </div>
+
+                {/* User Section */}
+                {user && (
+                  <div className="border-t border-slate-200 pt-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
+                        <span className="text-indigo-600 font-medium text-sm">
+                          {user.name?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-slate-900">
+                          {user.name || 'Account'}
+                        </div>
+                        <Link
+                          href="/settings"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="text-xs text-slate-500 hover:text-slate-700"
+                        >
+                          View Settings
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </nav>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
