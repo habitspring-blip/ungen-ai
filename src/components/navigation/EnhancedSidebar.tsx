@@ -42,7 +42,7 @@ export default function EnhancedSidebar() {
       className={`
         h-screen border-r border-slate-200 bg-white/80 backdrop-blur-md
         shadow-soft flex flex-col transition-all duration-300
-        ${isCollapsed ? 'w-20' : 'w-64'}
+        ${isCollapsed ? 'w-16' : 'w-48'}
       `}
     >
       {/* Top Section - Only Collapse Button */}

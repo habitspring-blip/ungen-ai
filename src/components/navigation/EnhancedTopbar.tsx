@@ -208,7 +208,7 @@ export default function EnhancedTopbar() {
           />
 
           {/* Drawer */}
-          <div className="absolute left-0 top-0 h-full w-80 bg-white shadow-xl">
+          <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-slate-200">
               <span className="text-lg font-semibold text-slate-900">Menu</span>
               <button

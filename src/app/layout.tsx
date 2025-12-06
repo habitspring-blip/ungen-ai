@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
 
               {/* Page Content */}
-              <main className="flex-1 lg:ml-64">
+              <main className="flex-1 lg:ml-48">
                 {children}
               </main>
             </div>
