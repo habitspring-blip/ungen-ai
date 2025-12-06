@@ -61,11 +61,7 @@ const nextConfig: NextConfig = {
   // Redirects for production
   async redirects() {
     return [
-      {
-        source: '/pricing',
-        destination: '/pricing',
-        permanent: true,
-      },
+      // No redirects configured
     ];
   },
 };
