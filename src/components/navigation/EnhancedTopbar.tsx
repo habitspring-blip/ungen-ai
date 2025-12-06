@@ -24,7 +24,9 @@ export default function EnhancedTopbar() {
 
   // Feature navigation items
   const featureNavItems = [
+    { href: '/features', label: 'Features' },
     { href: '/pricing', label: 'Pricing' },
+    { href: '/enterprise', label: 'Enterprise' },
     { href: '/settings', label: 'Settings' },
   ];
 
@@ -225,7 +227,7 @@ export default function EnhancedTopbar() {
               <div className="space-y-2">
                 {/* Main Navigation */}
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Main</h3>
+                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Platform</h3>
                   {mainNavItems.map((item) => (
                     <Link
                       key={item.href}
@@ -244,7 +246,7 @@ export default function EnhancedTopbar() {
 
                 {/* Feature Navigation */}
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Features</h3>
+                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Solutions</h3>
                   {featureNavItems.map((item) => (
                     <Link
                       key={item.href}
@@ -254,6 +256,29 @@ export default function EnhancedTopbar() {
                         pathname === item.href
                           ? 'bg-purple-100 text-purple-700'
                           : 'text-slate-600 hover:text-purple-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Company Navigation */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Company</h3>
+                  {[
+                    { href: '/about', label: 'About' },
+                    { href: '/contact', label: 'Contact' },
+                    { href: '/blog', label: 'Blog' },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition ${
+                        pathname === item.href
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'text-slate-600 hover:text-emerald-600 hover:bg-slate-50'
                       }`}
                     >
                       {item.label}

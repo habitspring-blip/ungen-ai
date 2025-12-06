@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
 import NavigationItem from '@/components/ui/NavigationItem';
 import PremiumButton from '@/components/ui/PremiumButton';
 import { useUser } from '@/context/UserContext';
 import Link from 'next/link';
 
 export default function EnhancedSidebar() {
-  const pathname = usePathname();
   const { user, logout } = useUser();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeSection, setActiveSection] = useState<'main' | 'settings'>('main');
 
   // Navigation items grouped by section
   const navigationItems = {

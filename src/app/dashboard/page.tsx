@@ -28,6 +28,16 @@ interface DashboardStats {
   };
 }
 
+interface HistoryItem {
+  id?: string;
+  title?: string;
+  inputText?: string;
+  type?: string;
+  createdAt?: string;
+  words?: number;
+  wordCount?: number;
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +91,7 @@ export default function DashboardPage() {
       // Process history data safely
       try {
         if (historyData?.success && historyData?.history?.length > 0) {
-          dashboardData.recentActivities = historyData.history.slice(0, 5).map((item: any) => ({
+          dashboardData.recentActivities = historyData.history.slice(0, 5).map((item: HistoryItem) => ({
             id: item.id || 'activity-' + Math.random().toString(36).substr(2, 9),
             title: item.title || item.inputText?.substring(0, 30) || 'Untitled Activity',
             type: item.type || 'unknown',

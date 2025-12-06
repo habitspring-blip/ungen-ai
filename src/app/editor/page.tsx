@@ -50,14 +50,13 @@ export default function EditorPage() {
   const [context, setContext] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [tone, setTone] = useState("neutral");
-  const [mode, setMode] = useState("humanise");
-  const [strictness, setStrictness] = useState(3);
-  const [model, setModel] = useState("auto");
+  const [intent, setIntent] = useState<'humanize' | 'summarize' | 'expand' | 'simplify' | 'grammar'>('humanize');
+  const [targetTone, setTargetTone] = useState("professional");
+  const [targetLength, setTargetLength] = useState<'short' | 'medium' | 'long'>('medium');
+  const [styleSamples, setStyleSamples] = useState<string[]>([]);
 
   const [showMenu, setShowMenu] = useState(false);
   const [menuIndex, setMenuIndex] = useState(0);
-  const [suggestion, setSuggestion] = useState<string | null>(null);
 
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<
@@ -79,15 +78,12 @@ export default function EditorPage() {
     if (textareaRef.current) adjustTextareaHeight(textareaRef.current);
   }, [input]);
 
-  const rewriteModes = [
-    { key: "humanise", label: "Humanise" },
-    { key: "professional", label: "Professional" },
-    { key: "email", label: "Email" },
-    { key: "friendly", label: "Friendly" },
-    { key: "concise", label: "Concise" },
-    { key: "linkedin", label: "LinkedIn" },
-    { key: "formal", label: "Formal" },
-    { key: "simplified", label: "Simplified" },
+  const rewriteIntents = [
+    { key: "humanize" as const, label: "Humanize", description: "Make text sound more natural and human-written" },
+    { key: "summarize" as const, label: "Summarize", description: "Condense content while preserving key information" },
+    { key: "expand" as const, label: "Expand", description: "Add details and elaboration" },
+    { key: "simplify" as const, label: "Simplify", description: "Use simpler words and clearer structure" },
+    { key: "grammar" as const, label: "Grammar Check", description: "Fix grammar and improve writing quality" },
   ];
 
   async function handleRewrite() {
@@ -101,37 +97,53 @@ export default function EditorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: input,
-          tone,
-          strictness,
-          model,
-          context,
-          style: mode,
+          intent,
+          targetTone,
+          targetLength,
+          styleSamples,
+          context
         }),
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setOutput(data.output);
-        // Save to history when transformation is successful
-        console.log("🔄 Saving transformation to history:", { input: input.substring(0, 50) + "...", output: data.output.substring(0, 50) + "..." });
-        saveHistory(input, data.output);
-        console.log("✅ History saved successfully");
-
-        // Show visual feedback
-        setSaveStatus("Saved to history!");
-        setTimeout(() => setSaveStatus(""), 3000);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `HTTP ${res.status}`);
       }
-      else {
-        // Provide more specific error messages
-        const errorMessage = data.error || "Rewrite failed. Please try again.";
-        setOutput(`Rewrite failed: ${errorMessage}`);
 
-        // Show error in console for debugging
-        console.error("Rewrite API error:", data.error || "Unknown error");
+      // Handle streaming response
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("No response stream available");
       }
+
+      const decoder = new TextDecoder();
+      let streamedContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        streamedContent += chunk;
+        setOutput(streamedContent);
+      }
+
+      // Save to history when streaming completes
+      console.log("🔄 Saving transformation to history:", {
+        input: input.substring(0, 50) + "...",
+        output: streamedContent.substring(0, 50) + "..."
+      });
+      saveHistory(input, streamedContent);
+      console.log("✅ History saved successfully");
+
+      // Show visual feedback
+      setSaveStatus("Saved to history!");
+      setTimeout(() => setSaveStatus(""), 3000);
+
     } catch (error) {
-      console.error("Network error:", error);
-      setOutput("Network error. Please check your connection.");
+      console.error("Rewrite error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Rewrite failed. Please try again.";
+      setOutput(`Error: ${errorMessage}`);
     }
 
     setLoading(false);
@@ -228,15 +240,15 @@ What would you like to do?`,
     if (showMenu) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setMenuIndex((i) => (i + 1) % rewriteModes.length);
+        setMenuIndex((i) => (i + 1) % rewriteIntents.length);
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setMenuIndex((i) => (i - 1 + rewriteModes.length) % rewriteModes.length);
+        setMenuIndex((i) => (i - 1 + rewriteIntents.length) % rewriteIntents.length);
       }
       if (e.key === "Enter") {
         e.preventDefault();
-        setMode(rewriteModes[menuIndex].key);
+        setIntent(rewriteIntents[menuIndex].key);
         setShowMenu(false);
       }
       if (e.key === "Escape") setShowMenu(false);
@@ -309,29 +321,30 @@ What would you like to do?`,
             </div>
           </div>
 
-          {/* MODE/TONE/MODEL CONTROLS */}
+          {/* INTENT/TONE/LENGTH CONTROLS */}
           <div className="bg-[#FAFAFA] border-b border-slate-200">
             <div className="max-w-[1400px] mx-auto px-8 py-3">
               <div className="flex flex-col gap-3">
-                {/* MODE */}
+                {/* INTENT */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] text-slate-400 uppercase min-w-[50px] font-semibold">
-                    Mode
+                    Intent
                   </span>
-                  {rewriteModes.map((m) => (
+                  {rewriteIntents.map((intentOption) => (
                     <button
-                      key={m.key}
-                      onClick={() => setMode(m.key)}
+                      key={intentOption.key}
+                      onClick={() => setIntent(intentOption.key)}
                       className={`
                         px-3 py-1 text-[11px] rounded-full
                         ${
-                          mode === m.key
+                          intent === intentOption.key
                             ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm"
                             : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                         }
                       `}
+                      title={intentOption.description}
                     >
-                      {m.label}
+                      {intentOption.label}
                     </button>
                   ))}
                 </div>
@@ -344,19 +357,20 @@ What would you like to do?`,
                     Tone
                   </span>
                   {[
-                    { key: "neutral", label: "Neutral" },
                     { key: "professional", label: "Professional" },
                     { key: "casual", label: "Casual" },
-                    { key: "confident", label: "Confident" },
                     { key: "friendly", label: "Friendly" },
+                    { key: "formal", label: "Formal" },
+                    { key: "confident", label: "Confident" },
+                    { key: "neutral", label: "Neutral" },
                   ].map((t) => (
                     <button
                       key={t.key}
-                      onClick={() => setTone(t.key)}
+                      onClick={() => setTargetTone(t.key)}
                       className={`
                         px-3 py-1 text-[11px] rounded-full
                         ${
-                          tone === t.key
+                          targetTone === t.key
                             ? "bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-sm"
                             : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                         }
@@ -369,54 +383,32 @@ What would you like to do?`,
 
                 <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
 
-                {/* MODEL */}
+                {/* LENGTH */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] text-slate-400 uppercase min-w-[50px] font-semibold">
-                    Model
+                    Length
                   </span>
                   {[
-                    { key: "auto", label: "Auto" },
-                    { key: "claude", label: "Claude" },
-                    { key: "cloudflare", label: "Cloudflare" },
-                    { key: "gpt4", label: "GPT-4" },
-                  ].map((m) => (
+                    { key: "short" as const, label: "Short", description: "More concise" },
+                    { key: "medium" as const, label: "Medium", description: "Balanced length" },
+                    { key: "long" as const, label: "Long", description: "More detailed" },
+                  ].map((l) => (
                     <button
-                      key={m.key}
-                      onClick={() => setModel(m.key)}
+                      key={l.key}
+                      onClick={() => setTargetLength(l.key)}
                       className={`
                         px-3 py-1 text-[11px] rounded-full
                         ${
-                          model === m.key
+                          targetLength === l.key
                             ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm"
                             : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                         }
                       `}
+                      title={l.description}
                     >
-                      {m.label}
+                      {l.label}
                     </button>
                   ))}
-                </div>
-
-                <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-
-                {/* STRICTNESS */}
-                <div className="flex items-center gap-4">
-                  <span className="text-[10px] min-w-[50px] text-slate-400 uppercase">
-                    Strictness
-                  </span>
-                  <div className="flex-1 flex items-center gap-3">
-                    <input
-                      type="range"
-                      min="1"
-                      max="5"
-                      value={strictness}
-                      onChange={(e) => setStrictness(Number(e.target.value))}
-                      className="flex-1 h-1.5 bg-slate-200 rounded-lg accent-indigo-600"
-                    />
-                    <span className="text-xs text-slate-600">
-                      {strictness}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -437,6 +429,43 @@ What would you like to do?`,
                   focus:ring-1 focus:ring-indigo-500/20
                 "
               />
+            </div>
+          </div>
+
+          {/* STYLE SAMPLES */}
+          <div className="bg-[#FAFAFA] border-b border-slate-200">
+            <div className="max-w-[1400px] mx-auto px-8 py-2.5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                  Style Samples
+                </span>
+                <span className="text-[9px] text-slate-500">
+                  ({styleSamples.length}/3) - Add examples of your preferred writing style
+                </span>
+              </div>
+              <div className="space-y-2">
+                {[0, 1, 2].map((index) => (
+                  <input
+                    key={index}
+                    type="text"
+                    value={styleSamples[index] || ""}
+                    onChange={(e) => {
+                      const newSamples = [...styleSamples];
+                      newSamples[index] = e.target.value;
+                      setStyleSamples(newSamples.filter(s => s.trim()));
+                    }}
+                    placeholder={`Example ${index + 1}: Your writing style...`}
+                    className="
+                      w-full px-3 py-2 text-xs
+                      bg-white border border-slate-200 rounded-lg
+                      text-slate-700 placeholder-slate-400
+                      focus:outline-none focus:border-indigo-500
+                      focus:ring-1 focus:ring-indigo-500/20
+                    "
+                    maxLength={200}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -490,7 +519,7 @@ What would you like to do?`,
                     disabled:opacity-50 disabled:cursor-not-allowed
                   "
                 >
-                  {loading ? "Transforming..." : "Transform"}
+                  {loading ? "Enhancing..." : "Enhance Text"}
                 </Button>
               </div>
             </div>
@@ -537,12 +566,6 @@ What would you like to do?`,
             </div>
           </div>
 
-          {/* SUGGESTION MESSAGE */}
-          {suggestion && (
-            <div className="mt-8 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/50 rounded-2xl p-6">
-              <p className="text-sm text-slate-600">{suggestion}</p>
-            </div>
-          )}
         </main>
       </div>
 
