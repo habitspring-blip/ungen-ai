@@ -228,10 +228,12 @@ export default function ApiPage() {
                   </p>
                   <div className="bg-slate-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
                     <div className="text-slate-500 mb-2"># Example API call</div>
-                    curl -X POST https://api.ungenai.com/v1/rewrite \<br />
-                    &nbsp;&nbsp;-H "Authorization: Bearer YOUR_API_KEY" \<br />
-                    &nbsp;&nbsp;-H "Content-Type: application/json" \<br />
-                    &nbsp;&nbsp;-d '{{"text": "Your text here", "intent": "humanize"}}'
+                    <pre className="whitespace-pre-wrap">
+{`curl -X POST https://api.ungenai.com/v1/rewrite \\
+ -H "Authorization: Bearer YOUR_API_KEY" \\
+ -H "Content-Type: application/json" \\
+ -d '{"text": "Your text here", "intent": "humanize"}'`}
+                    </pre>
                   </div>
                 </div>
 
