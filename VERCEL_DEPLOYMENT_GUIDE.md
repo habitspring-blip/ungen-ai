@@ -32,7 +32,7 @@ STRIPE_ENTERPRISE_PRICE_ID="your_enterprise_price_id"
 NEXT_PUBLIC_STRIPE_PUBLIC_KEY="your_stripe_public_key"
 
 # Cloudflare AI (for AI detection)
-CLOUDFLARE_API_KEY="your_cloudflare_api_key"
+CLOUDFLARE_API_TOKEN="your_cloudflare_api_token"
 CLOUDFLARE_ACCOUNT_ID="your_cloudflare_account_id"
 
 # Anthropic (for AI detection)

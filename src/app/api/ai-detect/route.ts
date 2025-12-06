@@ -10,7 +10,7 @@ import { aiDetectLimiter, getClientIP, validateRateLimitConfig } from '@/lib/rat
 // -------------------------------------------------------
 
 // Advanced AI detection using multiple models and techniques
-const CF_API_KEY = process.env.CLOUDFLARE_API_KEY || process.env.CLOUDFLARE_API_TOKEN;
+const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -217,7 +217,7 @@ function calculateReadability(text: string, wordCount: number, sentenceCount: nu
 
 // AI Detection using Cloudflare Workers AI
 async function cloudflareAIDetection(text: string): Promise<{ score: number; reasoning: string[] }> {
-  if (!CF_API_KEY || !CF_ACCOUNT_ID) {
+  if (!CF_API_TOKEN || !CF_ACCOUNT_ID) {
     throw new Error("Cloudflare credentials not available");
   }
 
@@ -267,7 +267,7 @@ Consider these human indicators:
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${CF_API_KEY}`,
+            Authorization: `Bearer ${CF_API_TOKEN}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({

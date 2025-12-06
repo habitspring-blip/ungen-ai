@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     // Provide user-friendly error messages
     let userFriendlyError = errorMessage;
 
-    if (errorMessage.includes('API credentials not configured')) {
+    if (errorMessage.includes('API key not configured')) {
       userFriendlyError = "AI service configuration error. Please contact support.";
     } else if (errorMessage.includes('API error')) {
       userFriendlyError = "AI service temporarily unavailable. Please try again.";
@@ -95,8 +95,11 @@ export async function POST(req: Request) {
       userFriendlyError = "Connection error. Please check your internet and try again.";
     }
 
+    // In development, show the actual error for debugging
+    const responseError = process.env.NODE_ENV === 'development' ? errorMessage : userFriendlyError;
+
     return NextResponse.json(
-      { success: false, error: userFriendlyError },
+      { success: false, error: responseError },
       { status: 500 }
     );
   }

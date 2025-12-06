@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.CLOUDFLARE_API_KEY}`,
+        Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({

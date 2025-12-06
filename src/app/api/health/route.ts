@@ -57,7 +57,7 @@ export async function POST() {
     
     // API keys validation (lightweight check)
     Promise.resolve(process.env.ANTHROPIC_API_KEY ? 'present' : 'missing'),
-    Promise.resolve(process.env.CLOUDFLARE_API_KEY ? 'present' : 'missing'),
+    Promise.resolve(process.env.CLOUDFLARE_API_TOKEN ? 'present' : 'missing'),
   ]);
 
   // Process results

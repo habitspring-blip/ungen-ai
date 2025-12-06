@@ -125,7 +125,7 @@ function selectModelByIntent(intent: RewriteRequest['intent']) {
  */
 async function runCloudflareStream(prompt: string, modelId: string): Promise<Response> {
   if (!CF_API_TOKEN || !CF_ACCOUNT_ID) {
-    throw new Error('Cloudflare API credentials not configured');
+    throw new Error('Cloudflare API key not configured');
   }
 
   const response = await fetch(

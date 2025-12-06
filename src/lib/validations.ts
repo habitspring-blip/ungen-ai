@@ -32,7 +32,6 @@ export const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'Service role key required'),
   ANTHROPIC_API_KEY: z.string().min(1, 'Anthropic API key required'),
   CLOUDFLARE_ACCOUNT_ID: z.string().min(1, 'Cloudflare account ID required'),
-  CLOUDFLARE_API_KEY: z.string().min(1, 'Cloudflare API key required'),
   CLOUDFLARE_API_TOKEN: z.string().min(1, 'Cloudflare API token required'),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PRO_PRICE_ID: z.string().optional(),

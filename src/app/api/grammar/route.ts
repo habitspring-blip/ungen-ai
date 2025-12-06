@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 // ENHANCED GRAMMAR ENGINE - SUPERIOR TO QUILLBOT
 // -------------------------------------------------------
 
-const CF_API_KEY = process.env.CLOUDFLARE_API_KEY || process.env.CLOUDFLARE_API_TOKEN;
+const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 
 // Types for grammar analysis
@@ -253,7 +253,7 @@ function checkGrammar(text: string): GrammarError[] {
 
 // AI-powered grammar enhancement using Cloudflare
 async function enhanceWithAI(text: string, errors: GrammarError[]): Promise<string[]> {
-  if (!CF_API_KEY || !CF_ACCOUNT_ID) {
+  if (!CF_API_TOKEN || !CF_ACCOUNT_ID) {
     return ["AI enhancement service unavailable"];
   }
 
@@ -281,7 +281,7 @@ Respond with a JSON array of suggestions:
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${CF_API_KEY}`,
+          Authorization: `Bearer ${CF_API_TOKEN}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
