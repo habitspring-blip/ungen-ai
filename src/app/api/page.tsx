@@ -230,9 +230,9 @@ export default function ApiPage() {
                     <div className="text-slate-500 mb-2"># Example API call</div>
                     <pre className="whitespace-pre-wrap">
 {`curl -X POST https://api.ungenai.com/v1/rewrite \\
- -H "Authorization: Bearer YOUR_API_KEY" \\
- -H "Content-Type: application/json" \\
- -d '{"text": "Your text here", "intent": "humanize"}'`}
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '\{"text": "Your text here", "intent": "humanize"\}'`}
                     </pre>
                   </div>
                 </div>
@@ -244,15 +244,15 @@ export default function ApiPage() {
                   </p>
                   <div className="bg-slate-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
                     <div className="text-slate-500 mb-2"># Example response</div>
-                    {`{
-  "success": true,
-  "data": {
-    "enhanced_text": "Enhanced version of your text...",
-    "processing_time": 1.2,
-    "word_count": 45,
-    "model_used": "advanced-v2"
-  }
-}`}
+                    {`\{
+                      "success": true,
+                      "data": \{
+                        "enhanced_text": "Enhanced version of your text...",
+                        "processing_time": 1.2,
+                        "word_count": 45,
+                        "model_used": "advanced-v2"
+                      \}
+                    \}`}
                   </div>
                 </div>
               </div>
