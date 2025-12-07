@@ -52,7 +52,8 @@ export default function EditorPage() {
 
   const [intent, setIntent] = useState<'humanize' | 'summarize' | 'expand' | 'simplify' | 'grammar'>('humanize');
   const [targetTone, setTargetTone] = useState("professional");
-  const [targetLength, setTargetLength] = useState<'short' | 'medium' | 'long'>('medium');
+  const [targetLength, setTargetLength] = useState<'short' | 'medium' | 'long' | 'extensive'>('medium');
+  const [selectedModel, setSelectedModel] = useState<'auto' | 'cloudflare' | 'claude' | 'gpt4' | 'gemini'>('auto');
   const [styleSamples, setStyleSamples] = useState<string[]>([]);
 
   const [showMenu, setShowMenu] = useState(false);
@@ -289,35 +290,6 @@ What would you like to do?`,
                 </div>
               </div>
 
-              {/* Floating Button */}
-              <button
-                onClick={openCortexAI}
-                disabled={suggestLoading}
-                className="
-                  px-4 py-2 rounded-full
-                  bg-white/80 backdrop-blur-md
-                  border border-slate-200
-                  shadow-md hover:shadow-lg
-                  text-slate-700 text-xs font-semibold
-                  flex items-center gap-2
-                  transition-all
-                "
-              >
-                <svg
-                  className="w-4 h-4 text-indigo-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 17l-1.5-3L7 12l3.5-2 1.5-3 1.5 3 3.5 2-3.5 2z"
-                  />
-                </svg>
-                CortexAI
-              </button>
             </div>
           </div>
 
@@ -386,18 +358,19 @@ What would you like to do?`,
                 {/* LENGTH */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] text-slate-400 uppercase min-w-[50px] font-semibold">
-                    Length
+                    Length <span className="text-[9px]">(0-500 words)</span>
                   </span>
                   {[
-                    { key: "short" as const, label: "Short", description: "More concise" },
-                    { key: "medium" as const, label: "Medium", description: "Balanced length" },
-                    { key: "long" as const, label: "Long", description: "More detailed" },
+                    { key: "short" as const, label: "Short", description: "More concise (0-100 words)", range: "0-100" },
+                    { key: "medium" as const, label: "Medium", description: "Balanced length (100-250 words)", range: "100-250" },
+                    { key: "long" as const, label: "Long", description: "More detailed (250-400 words)", range: "250-400" },
+                    { key: "extensive" as const, label: "Extensive", description: "Comprehensive (400-500 words)", range: "400-500" },
                   ].map((l) => (
                     <button
                       key={l.key}
                       onClick={() => setTargetLength(l.key)}
                       className={`
-                        px-3 py-1 text-[11px] rounded-full
+                        px-3 py-1 text-[11px] rounded-full relative
                         ${
                           targetLength === l.key
                             ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm"
@@ -407,6 +380,41 @@ What would you like to do?`,
                       title={l.description}
                     >
                       {l.label}
+                      <span className="ml-1 text-[9px] opacity-75">
+                        ({l.range})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+
+                {/* AI MODEL */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] text-slate-400 uppercase min-w-[50px] font-semibold">
+                    AI Model
+                  </span>
+                  {[
+                    { key: "auto" as const, label: "Auto", description: "Automatically select best model" },
+                    { key: "cloudflare" as const, label: "Cloudflare", description: "Cloudflare's AI models" },
+                    { key: "claude" as const, label: "Claude", description: "Anthropic's Claude models" },
+                    { key: "gpt4" as const, label: "GPT-4", description: "OpenAI's GPT-4 models" },
+                    { key: "gemini" as const, label: "Gemini", description: "Google's Gemini models" },
+                  ].map((model) => (
+                    <button
+                      key={model.key}
+                      onClick={() => setSelectedModel(model.key)}
+                      className={`
+                        px-3 py-1 text-[11px] rounded-full
+                        ${
+                          selectedModel === model.key
+                            ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm"
+                            : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }
+                      `}
+                      title={model.description}
+                    >
+                      {model.label}
                     </button>
                   ))}
                 </div>
@@ -417,6 +425,14 @@ What would you like to do?`,
           {/* CONTEXT FIELD */}
           <div className="bg-[#FAFAFA] border-b border-slate-200">
             <div className="max-w-[1400px] mx-auto px-8 py-2.5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                  Context
+                </span>
+                <span className="text-[9px] text-slate-500">
+                  Add instructions or context for better results
+                </span>
+              </div>
               <textarea
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
@@ -432,42 +448,6 @@ What would you like to do?`,
             </div>
           </div>
 
-          {/* STYLE SAMPLES */}
-          <div className="bg-[#FAFAFA] border-b border-slate-200">
-            <div className="max-w-[1400px] mx-auto px-8 py-2.5">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                  Style Samples
-                </span>
-                <span className="text-[9px] text-slate-500">
-                  ({styleSamples.length}/3) - Add examples of your preferred writing style
-                </span>
-              </div>
-              <div className="space-y-2">
-                {[0, 1, 2].map((index) => (
-                  <input
-                    key={index}
-                    type="text"
-                    value={styleSamples[index] || ""}
-                    onChange={(e) => {
-                      const newSamples = [...styleSamples];
-                      newSamples[index] = e.target.value;
-                      setStyleSamples(newSamples.filter(s => s.trim()));
-                    }}
-                    placeholder={`Example ${index + 1}: Your writing style...`}
-                    className="
-                      w-full px-3 py-2 text-xs
-                      bg-white border border-slate-200 rounded-lg
-                      text-slate-700 placeholder-slate-400
-                      focus:outline-none focus:border-indigo-500
-                      focus:ring-1 focus:ring-indigo-500/20
-                    "
-                    maxLength={200}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* MAIN EDITOR */}
@@ -494,7 +474,7 @@ What would you like to do?`,
                   bg-transparent resize-none overflow-hidden
                   focus:outline-none
                 "
-                style={{ minHeight: "120px" }}
+                style={{ minHeight: "200px" }}
               />
 
               <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
@@ -533,7 +513,7 @@ What would you like to do?`,
                 {output && !loading && <CopyButton text={output} />}
               </div>
 
-              <div className="px-6 py-5" style={{ minHeight: "120px" }}>
+              <div className="px-6 py-5" style={{ minHeight: "200px" }}>
                 {loading ? (
                   <Shimmer />
                 ) : output ? (
@@ -718,41 +698,7 @@ What would you like to do?`,
         </div>
       )}
 
-      {/* FLOATING BUTTON (BOTTOM) */}
-      <div className="sticky bottom-8 z-50 max-w-[1400px] mx-auto px-8 pointer-events-none">
-        <div className="flex justify-end">
-          <button
-            onClick={openCortexAI}
-            disabled={suggestLoading}
-            className="
-              px-5 py-3 rounded-full pointer-events-auto
-              bg-white/80 backdrop-blur-md
-              border border-slate-200
-              shadow-lg hover:shadow-xl
-              flex items-center gap-2
-              text-[13px] font-semibold text-slate-700
-              transition-all
-            "
-          >
-            <svg
-              className="w-4 h-4 text-indigo-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 17l-1.5-3L7 12l3.5-2 1.5-3 1.5 3 3.5 2-3.5 2z"
-              />
-            </svg>
-            CortexAI
-          </button>
-        </div>
-      </div>
 
-      <Footer />
     </>
   );
 }

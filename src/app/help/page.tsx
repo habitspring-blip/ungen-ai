@@ -129,7 +129,7 @@ export default function HelpPage() {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-2">Login issues?</h4>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-2">Sign In issues?</h4>
                   <p className="text-slate-600">
                     Make sure you're using the correct email and password. If you've forgotten your password,
                     use the "Forgot password" link on the login page.

@@ -34,17 +34,38 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <EnhancedTopbar />
 
             {/* Main Content Area */}
-            <div className="flex">
+            <div className="flex min-h-[calc(100vh-4rem)]">
               {/* Enhanced Sidebar - shown on larger screens */}
-              <div className="hidden lg:block">
+              <div className="hidden lg:flex lg:flex-col">
                 <EnhancedSidebar />
               </div>
 
               {/* Page Content */}
-              <main className="flex-1 lg:ml-48">
+              <main className="flex-1">
                 {children}
               </main>
             </div>
+
+            {/* Footer */}
+            <footer className="bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                <div className="flex flex-col md:flex-row justify-between items-center text-xs text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-2 mb-1 md:mb-0">
+                    <div className="w-5 h-5 bg-gradient-brand rounded flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">U</span>
+                    </div>
+                    <span className="font-medium">UngenAI</span>
+                    <span className="text-xs">© 2024</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <a href="/privacy" className="hover:text-slate-900 dark:hover:text-slate-200 transition-colors">Privacy</a>
+                    <a href="/terms" className="hover:text-slate-900 dark:hover:text-slate-200 transition-colors">Terms</a>
+                    <a href="/support" className="hover:text-slate-900 dark:hover:text-slate-200 transition-colors">Support</a>
+                    <a href="/status" className="hover:text-slate-900 dark:hover:text-slate-200 transition-colors">Status</a>
+                  </div>
+                </div>
+              </div>
+            </footer>
           </div>
         </UserProvider>
 

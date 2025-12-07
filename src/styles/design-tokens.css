@@ -5,17 +5,23 @@
   --brand-pink-start: #a855f7;
   --brand-pink-end: #ec4899;
 
-  /* Surface Colors - Minimalist Premium */
-  --surface-0: #ffffff;
-  --surface-1: #f8fafc;
-  --surface-2: #f1f5f9;
-  --surface-3: #e2e8f0;
+  /* Surface Colors - Dark Theme Premium */
+  --surface-0: #0f172a;
+  --surface-1: #1e293b;
+  --surface-2: #334155;
+  --surface-3: #475569;
 
-  /* Ink Colors - Premium Typography */
-  --ink-0: #0f172a;
-  --ink-1: #334155;
-  --ink-2: #64748b;
+  /* Ink Colors - Dark Theme Typography */
+  --ink-0: #f1f5f9;
+  --ink-1: #e2e8f0;
+  --ink-2: #cbd5e1;
   --ink-3: #94a3b8;
+
+  /* Dark mode brand gradients - brighter for better contrast */
+  --brand-indigo-start: #6366f1;
+  --brand-indigo-end: #8b5cf6;
+  --brand-pink-start: #a855f7;
+  --brand-pink-end: #ec4899;
 
   /* Accent Colors - Enterprise Features */
   --accent-indigo: #4f46e5;
@@ -50,6 +56,21 @@
   --space-5: 2.5rem;
   --space-6: 3rem;
   --space-8: 4rem;
+}
+
+/* Default dark theme body styles */
+body {
+  background-color: var(--surface-0);
+  color: var(--ink-0);
+}
+
+/* Ensure proper contrast for text elements */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--ink-0);
+}
+
+p, span, div {
+  color: var(--ink-1);
 }
 
 /* Premium Gradient Backgrounds */
@@ -237,6 +258,25 @@
   text-fill-color: transparent;
 }
 
+/* Toggle button styles for light mode */
+.toggle-group {
+  background: var(--surface-2);
+}
+
+.toggle-button-active {
+  background: var(--surface-0);
+  color: var(--ink-0);
+  box-shadow: var(--shadow-soft);
+}
+
+.toggle-button-inactive {
+  color: var(--ink-2);
+}
+
+.toggle-button-inactive:hover {
+  color: var(--ink-1);
+}
+
 /* Responsive Premium Adjustments */
 @media (max-width: 768px) {
   :root {
@@ -245,26 +285,41 @@
   }
 }
 
-/* Dark Mode Premium Adjustments */
-@media (prefers-color-scheme: dark) {
+/* Light Mode Adjustments */
+@media (prefers-color-scheme: light) {
   :root {
-    --surface-0: #0f172a;
-    --surface-1: #1e293b;
-    --surface-2: #334155;
-    --surface-3: #475569;
-    --ink-0: #f1f5f9;
-    --ink-1: #e2e8f0;
-    --ink-2: #cbd5e1;
+    --surface-0: #ffffff;
+    --surface-1: #f8fafc;
+    --surface-2: #f1f5f9;
+    --surface-3: #e2e8f0;
+    --ink-0: #0f172a;
+    --ink-1: #334155;
+    --ink-2: #64748b;
     --ink-3: #94a3b8;
   }
 
   .card-premium {
-    background: var(--surface-1);
+    background: var(--surface-0);
     border: 1px solid var(--surface-3);
   }
 
   .input-premium {
-    background: var(--surface-1);
+    background: var(--surface-0);
     border-color: var(--surface-3);
+  }
+
+  /* Additional light mode styles for better compatibility */
+  body {
+    background-color: var(--surface-0);
+    color: var(--ink-0);
+  }
+
+  /* Ensure proper contrast for text elements */
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--ink-0);
+  }
+
+  p, span, div {
+    color: var(--ink-1);
   }
 }

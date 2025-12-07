@@ -8,10 +8,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-brand rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">U</span>
               </div>
-              <span className="text-xl font-semibold text-slate-900">UngenAI</span>
+              <span className="text-xl font-semibold text-slate-900 dark:text-slate-100">UngenAI</span>
             </div>
 
             <div className="hidden md:flex items-center gap-8">
@@ -27,8 +27,8 @@ export default function HomePage() {
                   Sign In
                 </button>
               </Link>
-              <Link href="/signup">
-                <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all">
+              <Link href="/login">
+                <button className="btn-premium text-white px-4 py-2 rounded-lg">
                   Get Started
                 </button>
               </Link>
@@ -55,7 +55,7 @@ export default function HomePage() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <Link href="/editor">
-                <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <button className="btn-premium text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                   Start Writing Free
                 </button>
               </Link>
@@ -224,8 +224,8 @@ export default function HomePage() {
             Join thousands of professionals who trust UngenAI for their content creation needs.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/signup">
-              <button className="bg-white text-indigo-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-slate-50 shadow-lg hover:shadow-xl transition-all duration-300">
+            <Link href="/login">
+              <button className="bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-slate-50 dark:hover:bg-slate-700 shadow-lg hover:shadow-xl transition-all duration-300">
                 Start Free Trial
               </button>
             </Link>

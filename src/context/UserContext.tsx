@@ -17,6 +17,7 @@ interface User {
   email: string;
   avatar: string;
   plan: string;
+  credits: number;
   creditsUsed: number;
   creditsLimit: number;
 }
@@ -48,6 +49,7 @@ function UserProviderInner({ children }: { children: React.ReactNode }) {
         (sbUser.user_metadata?.avatar_url as string) ||
         "https://ui-avatars.com/api/?name=U&background=111&color=fff",
       plan: (sbUser.user_metadata?.plan as string) || "Free",
+      credits: (sbUser.user_metadata?.credits as number) || 5000,
       creditsUsed: (sbUser.user_metadata?.creditsUsed as number) || 0,
       creditsLimit: (sbUser.user_metadata?.creditsLimit as number) || 1000,
     };

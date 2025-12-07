@@ -22,9 +22,9 @@ export default function PremiumButton({
 
   // Variant styles
   const variantStyles = {
-    primary: 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 focus:ring-indigo-500',
-    secondary: 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 focus:ring-slate-500',
-    text: 'text-slate-600 hover:text-indigo-600 focus:ring-indigo-500',
+    primary: 'btn-premium text-white focus:ring-indigo-500',
+    secondary: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-500 focus:ring-slate-500',
+    text: 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:ring-indigo-500',
     danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-500'
   };
 

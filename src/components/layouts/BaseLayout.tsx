@@ -17,7 +17,7 @@ export default function BaseLayout({
   const pathname = usePathname();
 
   // Pages that don't need sidebar/topbar
-  const minimalPages = ['/login', '/signup', '/forgot-password', '/reset-password'];
+  const minimalPages = ['/login', '/forgot-password', '/reset-password'];
   const shouldShowUI = !minimalPages.includes(pathname);
 
   return (
