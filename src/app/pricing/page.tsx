@@ -15,7 +15,7 @@ type Currency = {
 
 export default function PricingPage() {
   const [billingCycle, setBillingCycle] =
-    useState<"monthly" | "annual">("annual")
+    useState<"monthly" | "annual">("monthly")
   const [currency, setCurrency] = useState<Currency>({
     code: "USD",
     symbol: "$",
@@ -73,28 +73,10 @@ export default function PricingPage() {
       priceINR: { monthly: 0, annual: 0 },
       priceUSD: { monthly: 0, annual: 0 },
       description: "Explore the platform basics.",
-      features: ["500 credits total (500 words)", "3 modes", "Basic engine", "Community support"],
+      features: ["500 words/month", "3 modes", "Basic engine", "Community support"],
       stats: { words: "500", modes: "3", support: "Community" },
       icon: "🌱",
       gradient: "from-emerald-500 to-green-600",
-      popular: false,
-      buttonVariant: "subtle" as ButtonVariant,
-    },
-    {
-      name: "Student",
-      priceINR: { monthly: Math.round(baseINRPrices.pro.monthly * 0.5), annual: Math.round(baseINRPrices.pro.annual * 0.5) }, // 50% discount
-      priceUSD: { monthly: Math.round(baseUSDPrices.pro.monthly * 0.5), annual: Math.round(baseUSDPrices.pro.annual * 0.5) },
-      description: "Perfect for students and learners.",
-      features: [
-        "25K words/month",
-        "6 modes",
-        "Advanced engine",
-        "Community support",
-        "Student verification required",
-      ],
-      stats: { words: "25K", modes: "6", support: "Community" },
-      icon: "🎓",
-      gradient: "from-blue-500 to-indigo-600",
       popular: false,
       buttonVariant: "subtle" as ButtonVariant,
     },
@@ -107,14 +89,32 @@ export default function PricingPage() {
         "50K words/month",
         "8 modes",
         "Advanced engine",
-        "Email support",
+        "Priority support",
         "API access",
       ],
-      stats: { words: "50K", modes: "8", support: "Email" },
+      stats: { words: "50K", modes: "8", support: "Priority" },
       icon: "🚀",
       gradient: "from-indigo-500 to-purple-600",
       popular: true,
       buttonVariant: "primary" as ButtonVariant,
+    },
+    {
+      name: "Enterprise",
+      priceINR: baseINRPrices.enterprise,
+      priceUSD: baseUSDPrices.enterprise,
+      description: "Scale, control, and advanced support.",
+      features: [
+        "Unlimited words",
+        "Custom models",
+        "Ultra-premium engine",
+        "Dedicated manager",
+        "SSO & security",
+      ],
+      stats: { words: "∞", modes: "Custom", support: "Dedicated" },
+      icon: "🏢",
+      gradient: "from-orange-500 to-amber-600",
+      popular: false,
+      buttonVariant: "subtle" as ButtonVariant,
     },
   ]
 

@@ -163,7 +163,7 @@ Would you like me to suggest some writing improvements or explain any features?`
   return (
     <>
       {/* Floating Assistant Button (always visible) */}
-      <div className="fixed bottom-6 left-6 z-50">
+      <div className="fixed bottom-6 right-6 z-50">
         {!isOpen ? (
           <button
             onClick={toggleAssistant}
@@ -192,7 +192,7 @@ Would you like me to suggest some writing improvements or explain any features?`
       {isOpen && !isMinimized && (
         <div
           ref={assistantRef}
-          className="fixed bottom-20 left-6 w-80 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in"
+          className="fixed bottom-20 right-6 w-80 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in"
           style={{
             transform: `translate(${position.x}px, ${position.y}px)`,
             cursor: isDragging ? 'grabbing' : 'auto'

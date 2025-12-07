@@ -40,32 +40,25 @@ function UserProviderInner({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Map Supabase user to your User type - NOW FETCHES FROM DATABASE
-  const mapUser = useCallback(async (sbUser: SupabaseUser): Promise<User> => {
-    // Fetch actual credits from public.users table
-    const { data: userData } = await supabase
-      .from('users')
-      .select('credits, credits_limit, name')
-      .eq('id', sbUser.id)
-      .single();
-
+  // Map Supabase user to your User type
+  const mapUser = useCallback((sbUser: SupabaseUser): User => {
     return {
-      name: userData?.name || (sbUser.user_metadata?.full_name as string) || "User",
+      name: (sbUser.user_metadata?.full_name as string) || "User",
       email: sbUser.email as string,
       avatar:
         (sbUser.user_metadata?.avatar_url as string) ||
         "https://ui-avatars.com/api/?name=U&background=111&color=fff",
       plan: (sbUser.user_metadata?.plan as string) || "Free",
-      credits: userData?.credits || 500, // FROM DATABASE, not cached metadata
+      credits: (sbUser.user_metadata?.credits as number) || 5000,
       creditsUsed: (sbUser.user_metadata?.creditsUsed as number) || 0,
-      creditsLimit: userData?.credits_limit || 500, // FROM DATABASE
+      creditsLimit: (sbUser.user_metadata?.creditsLimit as number) || 1000,
     };
-  }, [supabase]);
+  }, []);
 
   // Clear PKCE / magic link params from URL
   const clearAuthParams = useCallback(() => {
     const code = params.get("code");
-    const token = params.get("type");
+    const token = params.get("token");
     const type = params.get("type");
 
     if (code || token || type) {
@@ -83,8 +76,7 @@ function UserProviderInner({ children }: { children: React.ReactNode }) {
       if (!active) return;
 
       if (data.session?.user) {
-        const mappedUser = await mapUser(data.session.user); // Now async
-        setUser(mappedUser);
+        setUser(mapUser(data.session.user));
       } else {
         setUser(null);
       }
@@ -104,10 +96,9 @@ function UserProviderInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => { // Now async
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        const mappedUser = await mapUser(session.user); // Now async
-        setUser(mappedUser);
+        setUser(mapUser(session.user));
       }
 
       if (event === "SIGNED_OUT") {

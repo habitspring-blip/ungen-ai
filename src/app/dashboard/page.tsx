@@ -60,18 +60,17 @@ export default function DashboardPage() {
       setError(null);
 
       // Fetch data from multiple endpoints with error handling
-      const [statsResponse, historyResponse] = await Promise.all([
+      const [statsResponse, historyResponse, paymentsResponse] = await Promise.all([
         fetch('/api/dashboard/stats').catch(() => ({ json: async () => ({}) })),
-        fetch('/api/history').catch(() => ({ json: async () => ({}) }))
+        fetch('/api/history').catch(() => ({ json: async () => ({}) })),
+        fetch('/api/payments/create-checkout').catch(() => ({ json: async () => ({}) }))
       ]);
 
-      const [statsData, historyData] = await Promise.all([
+      const [statsData, historyData, paymentsData] = await Promise.all([
         statsResponse.json(),
-        historyResponse.json()
+        historyResponse.json(),
+        paymentsResponse.json()
       ]);
-
-      // Default payments data
-      const paymentsData = { plan: 'Free', expires: 'Never' };
 
       // Process data with comprehensive fallbacks
       const dashboardData: DashboardStats = {
@@ -83,8 +82,8 @@ export default function DashboardPage() {
         recentActivities: [],
         planInfo: {
           name: paymentsData?.plan || 'Free',
-          creditsUsed: Math.max(0, (user?.creditsLimit || 500) - (user?.credits || 500)),
-          creditsLimit: user?.creditsLimit || 500,
+          creditsUsed: statsData?.creditsUsed || 0,
+          creditsLimit: statsData?.creditsLimit || 1000,
           expires: paymentsData?.expires || 'Never'
         }
       };

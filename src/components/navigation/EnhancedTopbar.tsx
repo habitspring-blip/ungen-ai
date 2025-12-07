@@ -19,15 +19,13 @@ export default function EnhancedTopbar() {
 
   // Combined navigation items for better spacing
   const navigationItems = [
-    // Public pages when not logged in
-    ...(!user ? [
-      { href: '/features', label: 'Features' },
-      { href: '/pricing', label: 'Pricing' },
-      { href: '/help', label: 'Support' }
-    ] : []),
+    // Public product pages
+    { href: '/features', label: 'Features' },
+    { href: '/pricing', label: 'Pricing' },
     // User-specific pages (only shown when logged in)
     ...(user ? [
       { href: '/dashboard', label: 'Dashboard' },
+      { href: '/history', label: 'History' },
       { href: '/settings', label: 'Settings' }
     ] : []),
   ];
@@ -86,57 +84,7 @@ export default function EnhancedTopbar() {
           <div className="flex items-center gap-4">
             {/* Main Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {/* Features */}
-              {!user && (
-                <Link
-                  href="/features"
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
-                    pathname === '/features'
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
-                  }`}
-                >
-                  Features
-                </Link>
-              )}
-
-              {/* Tools Dropdown */}
-              <ToolsDropdown />
-
-              {/* Pricing and Support */}
-              {!user && (
-                <>
-                  <Link
-                    href="/pricing"
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
-                      pathname === '/pricing'
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    Pricing
-                  </Link>
-                  <Link
-                    href="/help"
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
-                      pathname === '/help'
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    Support
-                  </Link>
-                  {/* Free Credits Highlight */}
-                  <Link href="/login">
-                    <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg animate-pulse hover:scale-105 transition-transform cursor-pointer">
-                      Try for Free - 500 Credits Available
-                    </div>
-                  </Link>
-                </>
-              )}
-
-              {/* User-specific pages */}
-              {user && navigationItems.map((item) => (
+              {navigationItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -149,6 +97,9 @@ export default function EnhancedTopbar() {
                   {item.label}
                 </Link>
               ))}
+
+              {/* Tools Dropdown */}
+              <ToolsDropdown />
             </nav>
 
             {/* User Menu */}
@@ -194,6 +145,9 @@ export default function EnhancedTopbar() {
             {/* User Menu */}
             {user ? (
               <div className="flex items-center gap-3">
+                {/* Credit Display */}
+                <CreditDisplay />
+
                 {/* Notifications */}
                 <button className="p-2 text-slate-400 hover:text-slate-600 transition relative">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,6 +195,17 @@ export default function EnhancedTopbar() {
                       </Link>
 
                       <Link
+                        href="/pricing"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Plan
+                      </Link>
+
+                      <Link
                         href="/settings"
                         onClick={() => setIsUserMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
@@ -250,28 +215,6 @@ export default function EnhancedTopbar() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         Preferences
-                      </Link>
-
-                      <Link
-                        href="/pricing"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Pricing
-                      </Link>
-
-                      <Link
-                        href="/history"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Activity History
                       </Link>
 
                       <div className="border-t border-slate-200 my-1"></div>
@@ -293,13 +236,11 @@ export default function EnhancedTopbar() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-4">
-                <Link href="/login">
-                  <PremiumButton size="sm">
-                    Sign In
-                  </PremiumButton>
-                </Link>
-              </div>
+              <Link href="/login">
+                <PremiumButton size="sm">
+                  Sign In
+                </PremiumButton>
+              </Link>
             )}
           </div>
         </div>
@@ -350,6 +291,28 @@ export default function EnhancedTopbar() {
                   ))}
                 </div>
 
+                {/* Company Navigation */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-3">Company</h3>
+                  {[
+                    { href: '/about', label: 'About' },
+                    { href: '/contact', label: 'Contact' },
+                    { href: '/blog', label: 'Blog' },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition ${
+                        pathname === item.href
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'text-slate-600 hover:text-emerald-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
 
                 {/* Tools Dropdown */}
                 <div className="mb-6">

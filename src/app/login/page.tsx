@@ -130,9 +130,9 @@ export default function AuthPage() {
           email: user.email!,
           avatar: user.user_metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email || 'U')}&background=6366f1&color=fff`,
           plan: "Free",
-          credits: 500,
+          credits: 5000,
           creditsUsed: 0,
-          creditsLimit: 500,
+          creditsLimit: 1000,
         }
 
         setUser(userData)
@@ -192,26 +192,27 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-white flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 items-center justify-center p-6">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 items-center justify-center p-8">
         <div className="max-w-sm text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-brand rounded-xl mb-4 shadow-lg">
-            <span className="text-xl font-bold text-white">U</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-brand rounded-xl mb-6 shadow-lg">
+            <span className="text-2xl font-bold text-white">U</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+          <h1 className="text-3xl font-bold text-slate-900 mb-3">
             UngenAI
           </h1>
-          <p className="text-sm text-slate-600 leading-relaxed">
+          <p className="text-base text-slate-600 leading-relaxed">
             Advanced AI writing platform for enterprise teams.
+            Transform your content creation workflow with intelligent analysis and real-time enhancement.
           </p>
-          <div className="mt-4 flex justify-center space-x-4 text-xs text-slate-500">
+          <div className="mt-6 flex justify-center space-x-6 text-sm text-slate-500">
             <div className="flex items-center">
-              <svg className="w-3 h-3 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
               SOC 2 Compliant
             </div>
             <div className="flex items-center">
-              <svg className="w-3 h-3 text-blue-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
               </svg>
               Enterprise Security
@@ -221,29 +222,18 @@ export default function AuthPage() {
       </div>
 
       {/* Right Side - Auth Form */}
-      <div className="flex-1 flex items-center justify-center p-4 lg:p-6 min-h-screen">
+      <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
         <div className="w-full max-w-md">
-          {/* Free Credits Banner */}
-          <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-            <div className="flex items-center justify-center gap-2 text-green-700">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-semibold text-sm">🎁 Get 500 Free Credits!</span>
-            </div>
-            <p className="text-xs text-green-600 text-center mt-1">Sign up now and start creating amazing content</p>
-          </div>
-
           {/* Mobile Header */}
-          <div className="text-center mb-4 lg:hidden">
-            <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-brand rounded-xl mb-3 shadow-lg">
-              <span className="text-lg font-bold text-white">U</span>
+          <div className="text-center mb-6 lg:hidden">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-brand rounded-xl mb-4 shadow-lg">
+              <span className="text-xl font-bold text-white">U</span>
             </div>
-            <h1 className="text-lg font-bold text-slate-900 mb-1">UngenAI</h1>
+            <h1 className="text-xl font-bold text-slate-900 mb-1">UngenAI</h1>
           </div>
 
           {/* Tab Switcher */}
-          <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-1 mb-4">
+          <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-1 mb-6">
             <button
               type="button"
               onClick={() => setIsSignUp(false)}
@@ -270,21 +260,21 @@ export default function AuthPage() {
 
           {/* Form Card */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div className="p-4">
+            <div className="p-6">
               {/* Header */}
-              <div className="text-center mb-4">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">
+              <div className="text-center mb-6">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
                   {isSignUp ? 'Create your account' : 'Welcome back'}
                 </h2>
-                <p className="text-xs text-slate-600 dark:text-slate-400">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                   {isSignUp ? 'Get started with UngenAI today' : 'Sign in to your account'}
                 </p>
               </div>
             {/* Error Alert */}
             {errors.general && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center">
-                  <svg className="w-4 h-4 text-red-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-red-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <p className="text-red-700 text-sm font-medium">{errors.general}</p>
@@ -292,7 +282,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email Field */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
@@ -487,8 +477,8 @@ export default function AuthPage() {
           </div>
 
           {/* Footer */}
-          <div className="px-4 pb-3 text-center">
-            <p className="text-xs text-slate-600">
+          <div className="px-6 pb-4 text-center">
+            <p className="text-sm text-slate-600">
               {isSignUp ? 'Already have an account?' : 'New to UnGenAI?'}{' '}
               <button
                 type="button"
