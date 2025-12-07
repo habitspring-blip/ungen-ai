@@ -35,11 +35,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const allowedTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/html'];
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(txt|pdf|doc|docx|html)$/i)) {
+    // Validate file type - now includes images
+    const allowedTypes = [
+      'text/plain',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/html',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/bmp',
+      'image/tiff'
+    ];
+    const allowedExtensions = /\.(txt|pdf|doc|docx|html|jpg|jpeg|png|gif|webp|bmp|tiff)$/i;
+
+    if (!allowedTypes.includes(file.type) && !file.name.match(allowedExtensions)) {
       return NextResponse.json(
-        { success: false, error: 'Unsupported file type' },
+        { success: false, error: 'Unsupported file type. Supported: PDF, Word, Text, HTML, and images (JPG, PNG, GIF, WebP, BMP, TIFF)' },
         { status: 400 }
       );
     }
@@ -66,8 +81,83 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// GET /api/documents/:id - Get document content
 // GET /api/documents - List user's documents
 export async function GET(request: NextRequest) {
+  const { pathname } = new URL(request.url);
+  const isSingleDocument = pathname.includes('/api/documents/') && !pathname.endsWith('/api/documents');
+
+  if (isSingleDocument) {
+    // Get single document content
+    const documentId = pathname.split('/api/documents/')[1];
+
+    try {
+      // Authenticate user
+      const supabase = await createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      // Get document
+      const document = await (prisma as any).document.findFirst({
+        where: {
+          id: documentId,
+          userId: user.id
+        },
+        select: {
+          id: true,
+          originalText: true,
+          fileName: true,
+          fileType: true,
+          status: true,
+          wordCount: true,
+          characterCount: true,
+          language: true,
+          createdAt: true,
+          metadata: true
+        }
+      });
+
+      if (!document) {
+        return NextResponse.json(
+          { success: false, error: 'Document not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        document: {
+          id: document.id,
+          original_text: document.originalText,
+          file_name: document.fileName,
+          file_type: document.fileType,
+          status: document.status,
+          metadata: {
+            word_count: document.wordCount,
+            character_count: document.characterCount,
+            language: document.language,
+            ...document.metadata
+          },
+          created_at: document.createdAt
+        }
+      });
+
+    } catch (error) {
+      console.error('Document fetch error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch document' },
+        { status: 500 }
+      );
+    }
+  }
+
+  // List user's documents
   try {
     // Authenticate user
     const supabase = await createClient();
@@ -93,7 +183,7 @@ export async function GET(request: NextRequest) {
 
     // Get documents with pagination
     const [documents, total] = await Promise.all([
-      prisma.document.findMany({
+      (prisma as any).document.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         take: limit,
@@ -113,7 +203,7 @@ export async function GET(request: NextRequest) {
           }
         }
       }),
-      prisma.document.count({ where })
+      (prisma as any).document.count({ where })
     ]);
 
     return NextResponse.json({

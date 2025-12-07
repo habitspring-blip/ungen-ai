@@ -1,865 +1,709 @@
 # Implementation Algorithms
 
-## 1. Text Processing Algorithms
+## Core Summarization Algorithms
 
-### 1.1 Sentence Segmentation
+### 1. Extractive Summarization Algorithm
 
-```
-SENTENCE_SEGMENTATION(text):
-  sentences = []
-  buffer = ""
-
-  FOR i IN 0..len(text)-1:
-    char = text[i]
-    buffer += char
-
-    // Sentence boundary detection
-    IF isSentenceBoundary(text, i):
-      // Handle abbreviations (e.g., "Dr.", "Inc.")
-      IF NOT isAbbreviation(buffer):
-        sentences.append(cleanSentence(buffer))
-        buffer = ""
-      ELSE:
-        // Continue building sentence
-        CONTINUE
-
-  // Handle remaining buffer
-  IF buffer.trim():
-    sentences.append(cleanSentence(buffer))
-
-  RETURN sentences
-
-FUNCTION isSentenceBoundary(text, position):
-  current = text[position]
-  next = text[position + 1] if position + 1 < len(text) else ""
-
-  // Primary indicators
-  IF current IN {'.', '!', '?'}:
-    // Check for decimal numbers
-    IF current == '.' AND isDigit(text[position-1]) AND isDigit(next):
-      RETURN false
-
-    // Check for abbreviations
-    IF current == '.' AND isAbbreviationContext(text, position):
-      RETURN false
-
-    // Check for sentence continuation
-    IF next.isLower() OR next IN {'(', '"', "'"}:
-      RETURN false
-
-    RETURN true
-
-  RETURN false
-
-FUNCTION isAbbreviationContext(text, position):
-  // Look backwards for common abbreviations
-  abbreviations = {'Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Inc.', 'Ltd.', 'Corp.', 'Co.'}
-
-  FOR abbr IN abbreviations:
-    abbr_len = len(abbr)
-    start = position - abbr_len + 1
-    IF start >= 0 AND text[start..position+1] == abbr:
-      RETURN true
-
-  RETURN false
-```
-
-### 1.2 Tokenization and Normalization
+#### Sentence Scoring Algorithm
 
 ```
-TOKENIZE_AND_NORMALIZE(text):
-  // Convert to lowercase
-  text = text.toLowerCase()
+EXTRACTIVE_SUMMARIZE(document, config):
+  // Input: document text, config {length, focus_keywords, quality}
+  // Output: ranked sentences forming summary
 
-  // Handle contractions
-  text = expandContractions(text)
+  sentences = sentence_tokenize(document)
+  embeddings = compute_sentence_embeddings(sentences)
 
-  // Remove extra whitespace
-  text = text.replace(/\s+/g, ' ').trim()
+  // Step 1: Compute document-level features
+  doc_embedding = mean(embeddings)  // Centroid embedding
+  doc_length = len(sentences)
+  target_sentences = calculate_target_count(doc_length, config.length)
 
-  // Tokenize
-  tokens = text.split(/\s+/)
-
-  // Remove punctuation (keep for some analysis)
-  clean_tokens = []
-  FOR token IN tokens:
-    // Remove leading/trailing punctuation
-    clean_token = token.replace(/^[^\w]+|[^\w]+$/g, '')
-
-    IF clean_token AND len(clean_token) > 1:
-      clean_tokens.append(clean_token)
-
-  RETURN clean_tokens
-
-FUNCTION expandContractions(text):
-  contractions = {
-    "can't": "cannot",
-    "won't": "will not",
-    "shan't": "shall not",
-    "i'm": "i am",
-    "you're": "you are",
-    "he's": "he is",
-    "she's": "she is",
-    "it's": "it is",
-    "we're": "we are",
-    "they're": "they are",
-    "i've": "i have",
-    "you've": "you have",
-    "we've": "we have",
-    "they've": "they have",
-    "i'd": "i would",
-    "you'd": "you would",
-    "he'd": "he would",
-    "she'd": "she would",
-    "we'd": "we would",
-    "they'd": "they would",
-    "i'll": "i will",
-    "you'll": "you will",
-    "he'll": "he will",
-    "she'll": "she will",
-    "we'll": "we will",
-    "they'll": "they will"
-  }
-
-  FOR contraction, expansion IN contractions.items():
-    text = text.replace(contraction, expansion)
-
-  RETURN text
-```
-
-## 2. Extractive Summarization Algorithms
-
-### 2.1 TF-IDF Based Scoring
-
-```
-EXTRACTIVE_TFIDF_SUMMARIZATION(text, compression_ratio=0.3):
-  sentences = sentenceSegment(text)
-  tokens = tokenizeAndNormalize(text)
-
-  // Build TF-IDF model
-  tfidf_matrix = buildTFIDFMatrix(sentences, tokens)
+  // Step 2: Score each sentence
   sentence_scores = []
-
-  FOR i, sentence IN enumerate(sentences):
-    sentence_tokens = tokenizeAndNormalize(sentence)
-
-    // Calculate sentence score as average TF-IDF of its tokens
-    score = 0
-    valid_tokens = 0
-
-    FOR token IN sentence_tokens:
-      IF token IN tfidf_matrix:
-        score += tfidf_matrix[token]
-        valid_tokens += 1
-
-    IF valid_tokens > 0:
-      sentence_scores.append({
-        sentence: sentence,
-        score: score / valid_tokens,
-        index: i,
-        length: len(sentence_tokens)
-      })
-
-  // Sort by score and select top sentences
-  sentence_scores.sort(key=lambda x: x.score, reverse=True)
-
-  target_count = max(1, int(len(sentences) * compression_ratio))
-  selected = sentence_scores[:target_count]
-
-  // Reorder by original position
-  selected.sort(key=lambda x: x.index)
-
-  RETURN joinSentences([s.sentence for s in selected])
-
-FUNCTION buildTFIDFMatrix(sentences, all_tokens):
-  // Calculate term frequency
-  tf = {}
-  FOR token IN all_tokens:
-    tf[token] = tf.get(token, 0) + 1
-
-  // Calculate inverse document frequency
-  idf = {}
-  total_sentences = len(sentences)
-
-  FOR token IN tf.keys():
-    // Count sentences containing this token
-    containing_sentences = sum(1 for s in sentences
-                              if token in tokenizeAndNormalize(s))
-    idf[token] = log(total_sentences / (1 + containing_sentences))
-
-  // Calculate TF-IDF
-  tfidf = {}
-  FOR token IN tf.keys():
-    tfidf[token] = tf[token] * idf[token]
-
-  RETURN tfidf
-```
-
-### 2.2 Graph-Based Ranking (TextRank)
-
-```
-TEXTRANK_SUMMARIZATION(text, compression_ratio=0.3):
-  sentences = sentenceSegment(text)
-
-  // Build similarity matrix
-  similarity_matrix = buildSimilarityMatrix(sentences)
-
-  // Apply PageRank algorithm
-  scores = pageRank(similarity_matrix, damping=0.85, iterations=50)
-
-  // Rank sentences by score
-  ranked_sentences = []
-  FOR i, score IN enumerate(scores):
-    ranked_sentences.append({
-      sentence: sentences[i],
-      score: score,
-      index: i
+  for i, sentence in enumerate(sentences):
+    score = calculate_sentence_score(sentence, i, embeddings[i], doc_embedding, config)
+    sentence_scores.append({
+      'sentence': sentence,
+      'score': score,
+      'index': i,
+      'length': len(sentence.split())
     })
 
-  ranked_sentences.sort(key=lambda x: x.score, reverse=True)
+  // Step 3: Select optimal subset
+  selected_sentences = select_optimal_sentences(sentence_scores, target_sentences)
 
-  // Select top sentences
-  target_count = max(1, int(len(sentences) * compression_ratio))
-  selected = ranked_sentences[:target_count]
-  selected.sort(key=lambda x: x.index)
+  // Step 4: Reorder for coherence
+  final_sentences = reorder_for_coherence(selected_sentences, sentences)
 
-  RETURN joinSentences([s.sentence for s in selected])
+  return join_sentences(final_sentences)
 
-FUNCTION buildSimilarityMatrix(sentences):
-  n = len(sentences)
-  matrix = [[0] * n for _ in range(n)]
+calculate_sentence_score(sentence, position, embedding, doc_embedding, config):
+  // Multi-factor scoring algorithm
 
-  FOR i IN 0..n-1:
-    FOR j IN i+1..n-1:
-      similarity = sentenceSimilarity(sentences[i], sentences[j])
-      matrix[i][j] = similarity
-      matrix[j][i] = similarity
+  // Factor 1: Semantic similarity to document (40% weight)
+  semantic_score = cosine_similarity(embedding, doc_embedding)
 
-  RETURN matrix
+  // Factor 2: Position bias (20% weight)
+  position_score = calculate_position_weight(position, doc_length)
+  // Earlier sentences get higher weight: 1.0 → 0.1
 
-FUNCTION sentenceSimilarity(sent1, sent2):
-  tokens1 = set(tokenizeAndNormalize(sent1))
-  tokens2 = set(tokenizeAndNormalize(sent2))
+  // Factor 3: Length optimality (15% weight)
+  length_score = calculate_length_score(len(sentence.split()))
+  // Optimal length: 15-25 words, Gaussian distribution
 
-  intersection = tokens1.intersection(tokens2)
-  union = tokens1.union(tokens2)
+  // Factor 4: Keyword relevance (15% weight)
+  keyword_score = calculate_keyword_score(sentence, config.focus_keywords)
 
-  IF len(union) == 0:
-    RETURN 0
+  // Factor 5: Entity density (10% weight)
+  entity_score = calculate_entity_density(sentence)
 
-  RETURN len(intersection) / len(union)
-
-FUNCTION pageRank(matrix, damping=0.85, iterations=50):
-  n = len(matrix)
-  scores = [1.0 / n] * n  // Initialize uniform distribution
-
-  FOR _ IN 0..iterations-1:
-    new_scores = [0] * n
-
-    FOR i IN 0..n-1:
-      // Sum of incoming links
-      incoming_sum = 0
-      FOR j IN 0..n-1:
-        IF matrix[j][i] > 0:
-          outgoing_count = sum(1 for k in matrix[j] if k > 0)
-          IF outgoing_count > 0:
-            incoming_sum += scores[j] / outgoing_count
-
-      new_scores[i] = (1 - damping) / n + damping * incoming_sum
-
-    scores = new_scores
-
-  RETURN scores
-```
-
-## 3. Abstractive Summarization Algorithms
-
-### 3.1 Transformer-Based Generation
-
-```
-TRANSFORMER_SUMMARIZATION(text, config):
-  // Preprocessing
-  inputs = tokenizer(text, max_length=1024, truncation=True,
-                    padding=True, return_tensors="pt")
-
-  // Generate summary
-  outputs = model.generate(
-    inputs.input_ids,
-    attention_mask=inputs.attention_mask,
-    max_length=config.max_length,
-    min_length=config.min_length,
-    num_beams=4,
-    length_penalty=2.0,
-    early_stopping=True,
-    temperature=config.temperature,
-    do_sample=config.temperature > 0,
-    top_k=50,
-    top_p=0.95,
-    no_repeat_ngram_size=3,
-    repetition_penalty=1.2
+  // Weighted combination
+  total_score = (
+    0.40 * semantic_score +
+    0.20 * position_score +
+    0.15 * length_score +
+    0.15 * keyword_score +
+    0.10 * entity_score
   )
 
-  // Decode output
-  summary = tokenizer.decode(outputs[0], skip_special_tokens=True)
+  return total_score
 
-  // Post-processing
-  summary = cleanGeneratedText(summary)
+calculate_position_weight(position, total_sentences):
+  // Exponential decay favoring earlier sentences
+  return math.exp(-position * 0.3)
 
-  RETURN summary
+calculate_length_score(word_count):
+  // Gaussian distribution centered at 20 words
+  optimal_length = 20
+  std_dev = 8
+  return math.exp(-((word_count - optimal_length) ** 2) / (2 * std_dev ** 2))
 
-FUNCTION cleanGeneratedText(text):
-  // Remove incomplete sentences at the end
-  sentences = sentenceSegment(text)
-  complete_sentences = []
+calculate_keyword_score(sentence, keywords):
+  if not keywords:
+    return 0.5  // Neutral score
 
-  FOR sentence IN sentences:
-    // Check if sentence ends with proper punctuation
-    IF sentence.matches(/[.!?]$/):
-      complete_sentences.append(sentence)
-    ELSE:
-      // Check if it's a complete thought
-      IF len(sentence.split()) > 3:
-        complete_sentences.append(sentence + '.')
+  sentence_lower = sentence.lower()
+  matches = sum(1 for keyword in keywords if keyword.lower() in sentence_lower)
+  return min(matches / len(keywords), 1.0)
 
-  RETURN ' '.join(complete_sentences)
+calculate_entity_density(sentence):
+  // Count named entities per word
+  entities = extract_entities(sentence)
+  word_count = len(sentence.split())
+  return len(entities) / word_count if word_count > 0 else 0
 ```
 
-### 3.2 Prompt Engineering for LLMs
+#### Optimal Sentence Selection
 
 ```
-BUILD_SMART_PROMPT(text, config):
-  // Analyze text characteristics
-  stats = analyzeTextCharacteristics(text)
+select_optimal_sentences(scores, target_count):
+  // Use MMR (Maximal Marginal Relevance) for diversity
 
-  // Build context-aware prompt
-  prompt_parts = []
+  selected = []
+  remaining = scores.copy()
 
-  // System instruction
-  prompt_parts.append("You are an expert at creating concise, accurate summaries.")
+  // Select highest scoring sentence first
+  best = max(remaining, key=lambda x: x['score'])
+  selected.append(best)
+  remaining.remove(best)
 
-  // Task specification
-  task = getTaskDescription(config.intent)
-  prompt_parts.append(f"Task: {task}")
+  // Iteratively select diverse sentences
+  while len(selected) < target_count and remaining:
+    candidates = []
+    for candidate in remaining:
+      // Calculate relevance to already selected sentences
+      similarities = [cosine_similarity(candidate['embedding'], s['embedding'])
+                     for s in selected]
+      max_similarity = max(similarities) if similarities else 0
 
-  // Style guidelines
-  style = getStyleGuidelines(config.tone, stats.language)
-  prompt_parts.append(f"Style: {style}")
+      // MMR score: balance relevance and diversity
+      mmr_score = config.lambda_param * candidate['score'] - \
+                 (1 - config.lambda_param) * max_similarity
 
-  // Length constraints
-  length = getLengthConstraints(config.length, stats.word_count)
-  prompt_parts.append(f"Length: {length}")
+      candidates.append({
+        'sentence': candidate,
+        'mmr_score': mmr_score,
+        'diversity_penalty': max_similarity
+      })
 
-  // Content focus
-  IF config.focus_keywords:
-    focus = f"Focus on these key aspects: {', '.join(config.focus_keywords)}"
-    prompt_parts.append(focus)
+    // Select best MMR candidate
+    best_candidate = max(candidates, key=lambda x: x['mmr_score'])
+    selected.append(best_candidate['sentence'])
+    remaining.remove(best_candidate['sentence'])
 
-  // Text to summarize
-  prompt_parts.append(f"\nText to summarize:\n{text}")
+  return selected
+```
 
-  // Output format
-  format_instruction = getFormatInstruction(config.output_format)
-  prompt_parts.append(f"\n{format_instruction}")
+### 2. Abstractive Summarization Algorithm
 
-  RETURN '\n\n'.join(prompt_parts)
+#### Prompt Engineering Algorithm
 
-FUNCTION analyzeTextCharacteristics(text):
-  words = text.split()
-  sentences = sentenceSegment(text)
+```
+build_abstractive_prompt(text, config):
+  // Dynamic prompt construction based on content and requirements
 
-  RETURN {
-    word_count: len(words),
-    sentence_count: len(sentences),
-    avg_sentence_length: len(words) / len(sentences),
-    language: detectLanguage(text),
-    formality_score: calculateFormality(text),
-    complexity_score: calculateComplexity(text)
+  content_analysis = analyze_content(text)
+
+  base_prompt = construct_base_prompt(config.tone, config.length)
+  context_prompt = add_context_instructions(content_analysis)
+  quality_prompt = add_quality_instructions(config.quality)
+  format_prompt = add_format_instructions(config.output_format)
+
+  return combine_prompts([base_prompt, context_prompt, quality_prompt, format_prompt])
+
+construct_base_prompt(tone, length):
+  tone_instructions = {
+    'formal': 'Use formal, academic language. Avoid contractions.',
+    'casual': 'Use conversational, friendly language with contractions.',
+    'neutral': 'Use clear, professional language.',
+    'academic': 'Use scholarly language with discipline-specific terminology.',
+    'simple': 'Use simple words and short sentences.'
   }
 
-FUNCTION getTaskDescription(intent):
-  descriptions = {
-    humanize: "Rewrite this text to sound more natural and human-like, removing any robotic or artificial patterns.",
-    summarize: "Create a concise summary that captures the main points and key information.",
-    expand: "Expand on the key points with additional context and explanations.",
-    simplify: "Simplify complex ideas and use easier language.",
-    grammar: "Correct grammar and improve clarity while preserving the original meaning."
+  length_instructions = {
+    'short': 'Create a brief summary (50-75 words).',
+    'medium': 'Create a moderate-length summary (100-150 words).',
+    'long': 'Create a comprehensive summary (200-300 words).'
   }
 
-  RETURN descriptions[intent] || "Summarize the following text."
+  return f"""
+  {tone_instructions[tone]}
+  {length_instructions[length]}
+  Focus on the most important information and key takeaways.
+  """
+
+add_context_instructions(analysis):
+  instructions = []
+
+  if analysis.has_technical_content:
+    instructions.append("Explain technical terms simply.")
+
+  if analysis.has_numbers_dates:
+    instructions.append("Preserve important dates, numbers, and statistics.")
+
+  if analysis.is_opinion_piece:
+    instructions.append("Maintain the original perspective and tone.")
+
+  if analysis.has_multiple_perspectives:
+    instructions.append("Present multiple viewpoints fairly.")
+
+  return '\n'.join(instructions)
+
+add_quality_instructions(quality_level):
+  quality_map = {
+    'standard': 'Ensure accuracy and clarity.',
+    'premium': 'Ensure exceptional clarity, accuracy, and insight.',
+    'creative': 'Add insightful connections and implications.'
+  }
+
+  return quality_map[quality_level]
+
+add_format_instructions(output_format):
+  format_map = {
+    'paragraphs': 'Format as coherent paragraphs.',
+    'bullets': 'Format as bullet points highlighting key information.',
+    'numbered': 'Format as numbered points for step-by-step information.'
+  }
+
+  return format_map[output_format]
 ```
 
-## 4. Quality Evaluation Algorithms
-
-### 4.1 ROUGE Score Calculation
+#### Model Selection and Parameter Optimization
 
 ```
-CALCULATE_ROUGE(generated, reference):
-  // Tokenize texts
-  gen_tokens = tokenizeAndNormalize(generated)
-  ref_tokens = tokenizeAndNormalize(reference)
+select_model_parameters(text, config):
+  // Dynamic parameter selection based on content characteristics
+
+  text_length = len(text.split())
+  complexity = assess_text_complexity(text)
+  domain = detect_domain(text)
+
+  // Temperature selection
+  if config.quality == 'creative':
+    temperature = 0.8  # More creative
+  elif complexity == 'high':
+    temperature = 0.3  # More focused
+  else:
+    temperature = 0.6  # Balanced
+
+  // Max tokens based on desired length
+  length_multipliers = {'short': 0.5, 'medium': 1.0, 'long': 2.0}
+  base_tokens = 150
+  max_tokens = int(base_tokens * length_multipliers[config.length])
+
+  // Model selection
+  model = select_optimal_model(domain, text_length, config.quality)
+
+  return {
+    'model': model,
+    'temperature': temperature,
+    'max_tokens': max_tokens,
+    'top_p': 0.9,
+    'frequency_penalty': 0.3,
+    'presence_penalty': 0.3
+  }
+
+select_optimal_model(domain, text_length, quality):
+  // Model routing based on content type and requirements
+
+  if quality == 'premium' or domain in ['legal', 'medical', 'technical']:
+    return 'claude-3-5-sonnet'  # Highest quality
+
+  elif text_length > 2000 or domain == 'creative':
+    return 'claude-3-haiku'  # Fast and capable
+
+  else:
+    return 'llama-3.1-70b'  # Cost-effective
+```
+
+### 3. Quality Evaluation Algorithms
+
+#### ROUGE Score Calculation
+
+```
+compute_rouge_scores(summary, reference):
+  // Implementation of ROUGE metrics
+
+  summary_tokens = tokenize_and_preprocess(summary)
+  reference_tokens = tokenize_and_preprocess(reference)
 
   // ROUGE-1 (Unigram overlap)
-  gen_unigrams = getNgrams(gen_tokens, 1)
-  ref_unigrams = getNgrams(ref_tokens, 1)
-
-  rouge1_precision = calculateNgramPrecision(gen_unigrams, ref_unigrams)
-  rouge1_recall = calculateNgramRecall(gen_unigrams, ref_unigrams)
-  rouge1_f1 = 2 * (rouge1_precision * rouge1_recall) / (rouge1_precision + rouge1_recall)
+  rouge1 = compute_ngram_overlap(summary_tokens, reference_tokens, n=1)
 
   // ROUGE-2 (Bigram overlap)
-  gen_bigrams = getNgrams(gen_tokens, 2)
-  ref_bigrams = getNgrams(ref_tokens, 2)
-
-  rouge2_precision = calculateNgramPrecision(gen_bigrams, ref_bigrams)
-  rouge2_recall = calculateNgramRecall(gen_bigrams, ref_bigrams)
-  rouge2_f1 = 2 * (rouge2_precision * rouge2_recall) / (rouge2_precision + rouge2_recall)
+  rouge2 = compute_ngram_overlap(summary_tokens, reference_tokens, n=2)
 
   // ROUGE-L (Longest Common Subsequence)
-  rouge_l = calculateROUGEL(generated, reference)
+  rougeL = compute_lcs_overlap(summary_tokens, reference_tokens)
 
-  RETURN {
-    rouge1: { precision: rouge1_precision, recall: rouge1_recall, f1: rouge1_f1 },
-    rouge2: { precision: rouge2_precision, recall: rouge2_recall, f1: rouge2_f1 },
-    rougeL: rouge_l
+  return {
+    'rouge1': rouge1,
+    'rouge2': rouge2,
+    'rougeL': rougeL
   }
 
-FUNCTION getNgrams(tokens, n):
-  ngrams = []
-  FOR i IN 0..len(tokens)-n:
-    ngram = tuple(tokens[i:i+n])
-    ngrams.append(ngram)
-  RETURN ngrams
+compute_ngram_overlap(summary_tokens, reference_tokens, n):
+  summary_ngrams = generate_ngrams(summary_tokens, n)
+  reference_ngrams = generate_ngrams(reference_tokens, n)
 
-FUNCTION calculateNgramPrecision(gen_ngrams, ref_ngrams):
-  IF len(gen_ngrams) == 0:
-    RETURN 0
-
+  // Count matching n-grams
   matches = 0
-  ref_counts = Counter(ref_ngrams)
-
-  FOR ngram IN gen_ngrams:
-    IF ref_counts[ngram] > 0:
+  for ngram in summary_ngrams:
+    if ngram in reference_ngrams:
       matches += 1
-      ref_counts[ngram] -= 1
+      reference_ngrams.remove(ngram)  # Prevent double counting
 
-  RETURN matches / len(gen_ngrams)
+  precision = matches / len(summary_ngrams) if summary_ngrams else 0
+  recall = matches / len(reference_ngrams) if reference_ngrams else 0
 
-FUNCTION calculateNgramRecall(gen_ngrams, ref_ngrams):
-  IF len(ref_ngrams) == 0:
-    RETURN 0
+  f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
-  matches = 0
-  gen_counts = Counter(gen_ngrams)
+  return {
+    'precision': precision,
+    'recall': recall,
+    'f1_score': f1_score
+  }
 
-  FOR ngram IN ref_ngrams:
-    IF gen_counts[ngram] > 0:
-      matches += 1
-      gen_counts[ngram] -= 1
+compute_lcs_overlap(summary_tokens, reference_tokens):
+  // Simplified LCS-based ROUGE-L calculation
+  lcs_length = longest_common_subsequence_length(summary_tokens, reference_tokens)
 
-  RETURN matches / len(ref_ngrams)
+  precision = lcs_length / len(summary_tokens) if summary_tokens else 0
+  recall = lcs_length / len(reference_tokens) if reference_tokens else 0
+
+  f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+  return {
+    'precision': precision,
+    'recall': recall,
+    'f1_score': f1_score
+  }
 ```
 
-### 4.2 Semantic Similarity
+#### Semantic Similarity Calculation
 
 ```
-CALCULATE_SEMANTIC_SIMILARITY(text1, text2):
-  // Use sentence transformer model
+compute_semantic_similarity(text1, text2):
+  // Using sentence transformers for semantic similarity
+
   model = SentenceTransformer('all-MiniLM-L6-v2')
 
-  // Encode texts to embeddings
-  embedding1 = model.encode(text1)
-  embedding2 = model.encode(text2)
+  embedding1 = model.encode(text1, convert_to_tensor=True)
+  embedding2 = model.encode(text2, convert_to_tensor=True)
 
-  // Calculate cosine similarity
-  similarity = cosineSimilarity(embedding1, embedding2)
+  // Cosine similarity
+  similarity = util.cosine_sim(embedding1, embedding2)
 
-  RETURN similarity
+  return similarity.item()
 
-FUNCTION cosineSimilarity(vec1, vec2):
-  dot_product = sum(a * b for a, b in zip(vec1, vec2))
-  norm1 = sqrt(sum(a * a for a in vec1))
-  norm2 = sqrt(sum(b * b for b in vec2))
+compute_bert_score(summary, reference):
+  // BERT-based semantic similarity
 
-  IF norm1 == 0 OR norm2 == 0:
-    RETURN 0
+  model = BERTScorer(model_type='bert-base-uncased')
+  precision, recall, f1 = model.score([summary], [reference])
 
-  RETURN dot_product / (norm1 * norm2)
+  return {
+    'precision': precision[0],
+    'recall': recall[0],
+    'f1': f1[0]
+  }
 ```
 
-### 4.3 Readability Analysis
+#### Readability Analysis
 
 ```
-CALCULATE_READABILITY(text):
-  sentences = sentenceSegment(text)
-  words = tokenizeAndNormalize(text)
+calculate_readability_metrics(text):
+  sentences = sent_tokenize(text)
+  words = word_tokenize(text)
 
   // Basic metrics
-  total_sentences = len(sentences)
-  total_words = len(words)
-  total_syllables = sum(countSyllables(word) for word in words)
+  sentence_count = len(sentences)
+  word_count = len(words)
+  avg_words_per_sentence = word_count / sentence_count
 
-  // Average sentence length
-  avg_sentence_length = total_words / total_sentences
+  // Syllable count for Flesch-Kincaid
+  syllable_count = sum(count_syllables(word) for word in words)
+  avg_syllables_per_word = syllable_count / word_count
 
-  // Average syllables per word
-  avg_syllables_per_word = total_syllables / total_words
+  // Flesch Reading Ease
+  flesch_score = 206.835 - (1.015 * avg_words_per_sentence) - (84.6 * avg_syllables_per_word)
 
-  // Flesch Reading Ease Score
-  flesch_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
+  // Flesch-Kincaid Grade Level
+  fk_grade = (0.39 * avg_words_per_sentence) + (11.8 * avg_syllables_per_word) - 15.59
 
-  // Convert to 0-100 scale
-  flesch_score = max(0, min(100, flesch_score))
+  // Automated Readability Index
+  character_count = sum(len(word) for word in words)
+  ari = (4.71 * character_count / word_count) + (0.5 * word_count / sentence_count) - 21.43
 
-  // Determine level
-  IF flesch_score >= 90:
-    level = "5th grade"
-  ELSE IF flesch_score >= 80:
-    level = "6th grade"
-  ELSE IF flesch_score >= 70:
-    level = "7th grade"
-  ELSE IF flesch_score >= 60:
-    level = "8th-9th grade"
-  ELSE IF flesch_score >= 50:
-    level = "10th-12th grade"
-  ELSE IF flesch_score >= 30:
-    level = "College"
-  ELSE:
-    level = "College Graduate"
-
-  RETURN {
-    score: flesch_score,
-    level: level,
-    avg_sentence_length: avg_sentence_length,
-    avg_syllables_per_word: avg_syllables_per_word
+  return {
+    'flesch_reading_ease': flesch_score,
+    'flesch_kincaid_grade': fk_grade,
+    'automated_readability_index': ari,
+    'avg_words_per_sentence': avg_words_per_sentence,
+    'avg_syllables_per_word': avg_syllables_per_word
   }
 
-FUNCTION countSyllables(word):
+count_syllables(word):
   word = word.lower()
   count = 0
   vowels = "aeiouy"
 
-  IF word[0] in vowels:
+  if word[0] in vowels:
     count += 1
 
-  FOR i IN 1..len(word)-1:
-    IF word[i] in vowels AND word[i-1] not in vowels:
+  for i in range(1, len(word)):
+    if word[i] in vowels and word[i-1] not in vowels:
       count += 1
 
-  IF word.endswith("e"):
+  if word.endswith("e"):
     count -= 1
 
-  IF count == 0:
-    count = 1
+  if count == 0:
+    count += 1
 
-  RETURN count
+  return count
 ```
 
-## 5. Caching and Optimization Algorithms
+### 4. Cost Optimization Algorithms
 
-### 5.1 Cache Key Generation
+#### Dynamic Model Selection
 
 ```
-GENERATE_CACHE_KEY(text, config):
-  // Create deterministic hash of text
-  text_hash = SHA256(text)
+optimize_model_selection(request):
+  // Cost-benefit analysis for model selection
 
-  // Create deterministic hash of config
-  config_str = JSON.stringify(config, Object.keys(config).sort())
-  config_hash = SHA256(config_str)
+  content_complexity = assess_complexity(request.text)
+  user_plan = get_user_plan(request.user_id)
+  time_constraints = request.max_latency or 5000  # ms
 
-  // Combine hashes
-  cache_key = f"summary:{text_hash}:{config_hash}"
+  models = get_available_models()
 
-  RETURN cache_key
+  best_model = None
+  best_score = -1
 
-FUNCTION SHA256(text):
-  // Use crypto library for consistent hashing
-  RETURN crypto.createHash('sha256').update(text).digest('hex')
+  for model in models:
+    // Check if model meets latency requirements
+    if model.avg_latency > time_constraints:
+      continue
+
+    // Calculate cost-benefit score
+    quality_score = predict_quality(model, request)
+    cost_score = calculate_cost_efficiency(model, user_plan)
+    latency_score = calculate_latency_score(model, time_constraints)
+
+    // Weighted combination
+    total_score = (
+      0.5 * quality_score +
+      0.3 * cost_score +
+      0.2 * latency_score
+    )
+
+    if total_score > best_score:
+      best_score = total_score
+      best_model = model
+
+  return best_model
+
+calculate_cost_efficiency(model, user_plan):
+  // Cost efficiency considering user plan limits
+
+  base_cost = model.cost_per_token
+  plan_discount = get_plan_discount(user_plan)
+
+  effective_cost = base_cost * (1 - plan_discount)
+
+  // Efficiency score (higher = better)
+  return 1 / (1 + effective_cost)  # Normalized to 0-1
+
+calculate_latency_score(model, max_latency):
+  // Latency efficiency score
+
+  if model.avg_latency > max_latency:
+    return 0  # Ineligible
+
+  // Score based on how much headroom we have
+  utilization = model.avg_latency / max_latency
+  return 1 - utilization  # More headroom = higher score
 ```
 
-### 5.2 Cache Invalidation Strategy
+#### Batch Processing Optimization
+
+```
+optimize_batch_processing(requests):
+  // Group requests for efficient processing
+
+  // Step 1: Group by compatible parameters
+  batches = group_compatible_requests(requests)
+
+  // Step 2: Optimize batch sizes
+  optimized_batches = []
+  for batch in batches:
+    optimal_size = find_optimal_batch_size(batch, cost_function)
+    optimized_batch = split_batch(batch, optimal_size)
+    optimized_batches.extend(optimized_batch)
+
+  // Step 3: Schedule execution
+  schedule = create_execution_schedule(optimized_batches)
+
+  return schedule
+
+group_compatible_requests(requests):
+  // Group requests that can be processed together
+
+  groups = {}
+
+  for request in requests:
+    key = create_compatibility_key(request)
+    if key not in groups:
+      groups[key] = []
+    groups[key].append(request)
+
+  return list(groups.values())
+
+create_compatibility_key(request):
+  // Create grouping key based on processing requirements
+  return f"{request.model}_{request.temperature}_{request.max_tokens}"
+
+find_optimal_batch_size(batch, cost_model):
+  // Find batch size that minimizes cost per request
+
+  max_batch_size = min(len(batch), 50)  # System limit
+  best_size = 1
+  best_cost_per_request = float('inf')
+
+  for size in range(1, max_batch_size + 1):
+    total_cost = cost_model.predict_cost(len(batch), size)
+    cost_per_request = total_cost / len(batch)
+
+    if cost_per_request < best_cost_per_request:
+      best_cost_per_request = cost_per_request
+      best_size = size
+
+  return best_size
+```
+
+### 5. Caching Algorithms
+
+#### Intelligent Cache Key Generation
+
+```
+generate_cache_key(text, config):
+  // Create deterministic cache key for identical requests
+
+  // Step 1: Normalize text
+  normalized_text = normalize_text(text)
+
+  // Step 2: Create content hash
+  content_hash = hash_sha256(normalized_text)
+
+  // Step 3: Create config fingerprint
+  config_string = json.dumps(config, sort_keys=True)
+  config_hash = hash_sha256(config_string)
+
+  // Step 4: Combine with version
+  cache_key = f"summary:{content_hash}:{config_hash}:v1"
+
+  return cache_key
+
+normalize_text(text):
+  // Normalize text for consistent hashing
+
+  // Remove extra whitespace
+  text = re.sub(r'\s+', ' ', text.strip())
+
+  // Normalize case
+  text = text.lower()
+
+  // Remove punctuation (optional, based on requirements)
+  text = re.sub(r'[^\w\s]', '', text)
+
+  return text
+
+hash_sha256(text):
+  return hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]  # Short hash
+```
+
+#### Cache Invalidation Strategy
 
 ```
 CACHE_INVALIDATION_STRATEGY:
+
   // Time-based expiration
-  TTL_SUMMARIES = 7 * 24 * 60 * 60  // 7 days in seconds
-  TTL_PREPROCESSING = 30 * 24 * 60 * 60  // 30 days
-
-  // Event-based invalidation
-  INVALIDATION_EVENTS = {
-    'model_updated': invalidateByModel,
-    'user_feedback': invalidateByDocument,
-    'config_changed': invalidateByConfig
+  TTL_CONFIG = {
+    'extractive': 7 * 24 * 60 * 60,  // 7 days
+    'abstractive': 30 * 24 * 60 * 60,  // 30 days
+    'premium': 90 * 24 * 60 * 60  // 90 days
   }
 
-FUNCTION invalidateByModel(model_version):
-  // Find all summaries using this model
-  affected_keys = QUERY "summary:*" WHERE model_version == model_version
+  // Content-based invalidation
+  invalidate_on_content_change(document_id):
+    // When document is updated, invalidate all related caches
+    cache_keys = find_cache_keys_by_document(document_id)
+    for key in cache_keys:
+      delete_cache_entry(key)
 
-  FOR key IN affected_keys:
-    DELETE_CACHE(key)
+  // Model version invalidation
+  invalidate_on_model_update(model_version):
+    // When model is updated, invalidate caches for that model
+    cache_keys = find_cache_keys_by_model(model_version)
+    for key in cache_keys:
+      delete_cache_entry(key)
 
-FUNCTION invalidateByDocument(document_id):
-  // Invalidate all summaries for this document
-  pattern = f"summary:{SHA256(document_id)}:*"
-  DELETE_CACHE_PATTERN(pattern)
-
-FUNCTION invalidateByConfig(config_change):
-  // Invalidate based on config changes
-  IF config_change.type == 'length':
-    // Invalidate summaries with different length settings
-    // Implementation depends on how config is stored
+  // Quality threshold invalidation
+  invalidate_low_quality_cache():
+    // Periodically check and remove low-quality cached summaries
+    low_quality_keys = find_low_quality_cache_entries()
+    for key in low_quality_keys:
+      delete_cache_entry(key)
 ```
 
-## 6. Rate Limiting Algorithms
+### 6. Feedback Learning Algorithms
 
-### 6.1 Token Bucket Algorithm
-
-```
-TOKEN_BUCKET_RATE_LIMITER(capacity, refill_rate):
-  // Initialize bucket
-  this.capacity = capacity  // Max tokens
-  this.tokens = capacity    // Current tokens
-  this.refill_rate = refill_rate  // Tokens per second
-  this.last_refill = NOW()
-
-  FUNCTION allow_request():
-    now = NOW()
-    time_passed = now - this.last_refill
-
-    // Refill tokens based on time passed
-    tokens_to_add = time_passed * this.refill_rate
-    this.tokens = min(this.capacity, this.tokens + tokens_to_add)
-    this.last_refill = now
-
-    // Check if request can be allowed
-    IF this.tokens >= 1:
-      this.tokens -= 1
-      RETURN { allowed: true, remaining: this.tokens }
-    ELSE:
-      RETURN {
-        allowed: false,
-        remaining: this.tokens,
-        reset_time: this.last_refill + ((1 - this.tokens) / this.refill_rate)
-      }
-
-RATE_LIMITS = {
-  'free': { capacity: 100, refill_rate: 100/3600 },  // 100 requests per hour
-  'pro': { capacity: 1000, refill_rate: 1000/3600 }, // 1000 requests per hour
-  'enterprise': { capacity: 10000, refill_rate: 10000/3600 } // 10k requests per hour
-}
-```
-
-### 6.2 Sliding Window Algorithm
+#### User Feedback Processing
 
 ```
-SLIDING_WINDOW_RATE_LIMITER(window_size, max_requests):
-  this.window_size = window_size  // In seconds
-  this.max_requests = max_requests
-  this.requests = []  // List of timestamps
+process_user_feedback(feedback):
+  // Convert user feedback into training data
 
-  FUNCTION allow_request():
-    now = NOW()
+  // Step 1: Retrieve original data
+  original_summary = get_original_summary(feedback.summary_id)
+  original_document = get_original_document(feedback.summary_id)
 
-    // Remove old requests outside the window
-    this.requests = [t for t in this.requests if now - t < this.window_size]
+  // Step 2: Validate feedback quality
+  if not is_valid_feedback(feedback):
+    return reject_feedback("Invalid feedback")
 
-    // Check if under limit
-    IF len(this.requests) < this.max_requests:
-      this.requests.append(now)
-      RETURN { allowed: true, remaining: this.max_requests - len(this.requests) }
-    ELSE:
-      // Calculate reset time
-      oldest_request = min(this.requests)
-      reset_time = oldest_request + this.window_size
-
-      RETURN {
-        allowed: false,
-        remaining: 0,
-        reset_time: reset_time
-      }
-```
-
-## 7. A/B Testing Algorithms
-
-### 7.1 Traffic Splitting
-
-```
-TRAFFIC_SPLITTER(variants, weights):
-  // variants: ['control', 'variant_a', 'variant_b']
-  // weights: [0.5, 0.3, 0.2]  // Must sum to 1.0
-
-  FUNCTION assign_variant(user_id):
-    // Use consistent hashing for user assignment
-    hash = SHA256(user_id)
-    hash_int = int(hash[:8], 16)  // First 8 hex chars as int
-    normalized = hash_int / 0xFFFFFFFF  // Normalize to 0-1
-
-    // Find which variant this falls into
-    cumulative = 0
-    FOR i, weight IN enumerate(weights):
-      cumulative += weight
-      IF normalized <= cumulative:
-        RETURN variants[i]
-
-    RETURN variants[0]  // Fallback
-
-  FUNCTION get_variant_stats():
-    stats = {}
-    FOR variant IN variants:
-      stats[variant] = {
-        users: COUNT_USERS_IN_VARIANT(variant),
-        conversions: COUNT_CONVERSIONS_IN_VARIANT(variant),
-        conversion_rate: CALCULATE_CONVERSION_RATE(variant)
-      }
-
-    RETURN stats
-```
-
-### 7.2 Statistical Significance Testing
-
-```
-STATISTICAL_SIGNIFICANCE_TEST(control_results, variant_results, confidence=0.95):
-  // Chi-square test for conversion rates
-
-  control_conversions = control_results.conversions
-  control_total = control_results.total_users
-  control_rate = control_conversions / control_total
-
-  variant_conversions = variant_results.conversions
-  variant_total = variant_results.total_users
-  variant_rate = variant_conversions / variant_total
-
-  // Calculate chi-square statistic
-  expected_control = (control_conversions + variant_conversions) * (control_total / (control_total + variant_total))
-  expected_variant = (control_conversions + variant_conversions) * (variant_total / (control_total + variant_total))
-
-  chi_square = (
-    (control_conversions - expected_control) ** 2 / expected_control +
-    (variant_conversions - expected_variant) ** 2 / expected_variant
-  )
-
-  // Degrees of freedom = 1
-  // Critical value for 95% confidence = 3.841
-  critical_value = 3.841
-
-  is_significant = chi_square > critical_value
-
-  RETURN {
-    chi_square: chi_square,
-    critical_value: critical_value,
-    is_significant: is_significant,
-    improvement: (variant_rate - control_rate) / control_rate * 100,
-    confidence_level: confidence
+  // Step 3: Create training example
+  training_example = {
+    'input': original_document.text,
+    'original_summary': original_summary.text,
+    'user_preferred_summary': feedback.edited_summary,
+    'rating': feedback.rating,
+    'feedback_type': feedback.feedback_type,
+    'user_id': feedback.user_id,
+    'timestamp': feedback.created_at
   }
+
+  // Step 4: Add to training dataset
+  add_to_training_dataset(training_example)
+
+  // Step 5: Update model weights
+  update_model_preferences(training_example)
+
+  return success("Feedback processed")
+
+is_valid_feedback(feedback):
+  // Quality checks for user feedback
+
+  checks = [
+    len(feedback.edited_summary) > 10,  // Minimum length
+    feedback.rating >= 1 and feedback.rating <= 5,  // Valid rating
+    not is_spam_feedback(feedback),  // Spam detection
+    is_meaningful_edit(feedback)  // Actual improvement
+  ]
+
+  return all(checks)
+
+is_meaningful_edit(feedback):
+  // Check if user edit represents significant improvement
+
+  original = feedback.original_summary
+  edited = feedback.edited_summary
+
+  // Length difference
+  length_ratio = len(edited) / len(original)
+  if length_ratio < 0.5 or length_ratio > 2.0:
+    return False  # Too different
+
+  // Semantic similarity (should be similar but improved)
+  similarity = compute_semantic_similarity(original, edited)
+  if similarity < 0.3 or similarity > 0.95:
+    return False  # Too different or too similar
+
+  return True
 ```
 
-## 8. Cost Optimization Algorithms
-
-### 8.1 Model Selection Based on Cost
+#### Continuous Model Improvement
 
 ```
-COST_OPTIMIZED_MODEL_SELECTION(text_length, user_plan, quality_requirement):
-  // Define model costs and capabilities
-  models = {
-    'cloudflare_fast': {
-      cost_per_token: 0.0001,
-      max_tokens: 4096,
-      quality_score: 0.7,
-      latency: 1000
-    },
-    'cloudflare_large': {
-      cost_per_token: 0.0002,
-      max_tokens: 8192,
-      quality_score: 0.8,
-      latency: 2000
-    },
-    'anthropic_sonnet': {
-      cost_per_token: 0.001,
-      max_tokens: 4096,
-      quality_score: 0.95,
-      latency: 3000
+CONTINUOUS_LEARNING_LOOP:
+
+  // Step 1: Collect feedback batch
+  feedback_batch = collect_feedback_batch(min_size=100, max_age=7_days)
+
+  // Step 2: Prepare training data
+  training_data = prepare_training_data(feedback_batch)
+
+  // Step 3: Evaluate current model
+  baseline_metrics = evaluate_current_model(training_data)
+
+  // Step 4: Fine-tune model
+  fine_tuned_model = fine_tune_model(current_model, training_data)
+
+  // Step 5: Evaluate improvements
+  new_metrics = evaluate_model(fine_tuned_model, training_data)
+
+  // Step 6: A/B testing
+  if should_run_ab_test(new_metrics, baseline_metrics):
+    run_ab_test(fine_tuned_model, baseline_metrics)
+
+  // Step 7: Deploy if improved
+  if new_metrics.overall_score > baseline_metrics.overall_score * 1.05:
+    deploy_new_model(fine_tuned_model)
+    log_model_deployment(fine_tuned_model, new_metrics)
+
+prepare_training_data(feedback_batch):
+  training_examples = []
+
+  for feedback in feedback_batch:
+    example = {
+      'instruction': build_instruction_from_config(feedback.config),
+      'input': feedback.document_text,
+      'output': feedback.edited_summary,
+      'quality_score': feedback.rating / 5.0  // Normalize to 0-1
     }
-  }
+    training_examples.append(example)
 
-  // Estimate token count
-  estimated_tokens = text_length * 0.3  // Rough estimate
-
-  // Filter by capabilities
-  available_models = []
-  FOR model, specs IN models.items():
-    IF estimated_tokens <= specs.max_tokens:
-      // Check if user plan allows this model
-      IF isModelAllowedForPlan(model, user_plan):
-        available_models.append({
-          name: model,
-          specs: specs,
-          estimated_cost: estimated_tokens * specs.cost_per_token
-        })
-
-  // Sort by cost-efficiency while meeting quality requirements
-  available_models.sort(key=lambda m:
-    m.estimated_cost / max(m.specs.quality_score, quality_requirement)
-  )
-
-  RETURN available_models[0]  // Cheapest that meets requirements
+  return training_examples
 ```
-
-### 8.2 Dynamic Batching
-
-```
-DYNAMIC_BATCH_PROCESSOR(max_batch_size=8, max_wait_time=5000):
-  this.batch = []
-  this.batch_start_time = null
-  this.processing = false
-
-  FUNCTION add_to_batch(request):
-    this.batch.append(request)
-
-    IF NOT this.batch_start_time:
-      this.batch_start_time = NOW()
-
-    // Check if batch is ready to process
-    IF len(this.batch) >= max_batch_size:
-      process_batch()
-    ELSE:
-      // Schedule processing after max wait time
-      schedule_processing()
-
-  FUNCTION schedule_processing():
-    IF this.processing:
-      RETURN
-
-    wait_time = max_wait_time - (NOW() - this.batch_start_time)
-
-    IF wait_time > 0:
-      setTimeout(() => {
-        IF len(this.batch) > 0:
-          process_batch()
-      }, wait_time)
-
-  FUNCTION process_batch():
-    IF this.processing OR len(this.batch) == 0:
-      RETURN
-
-    this.processing = true
-    batch_requests = this.batch
-    this.batch = []
-    this.batch_start_time = null
-
-    // Process batch
-    processBatchRequests(batch_requests)
-      .then(() => {
-        this.processing = false
-        // Process any new requests that came in during processing
-        IF len(this.batch) > 0:
-          process_batch()
-      })
-      .catch((error) => {
-        console.error('Batch processing error:', error)
-        this.processing = false
-        // Handle error - maybe retry individual requests
-      })
-```
-
-These algorithms form the core of the AI summarizer's functionality, ensuring high-quality results while maintaining performance and cost efficiency.

@@ -91,12 +91,6 @@ For detailed technical documentation, see the following guides:
 
 - **[Performance Targets](Documentation/PERFORMANCE.md)** - Latency targets, monitoring metrics, and quality benchmarks
 
-### Quick Links
-
-- [Environment Variables Setup](Documentation/ENVIRONMENT.md) _(Coming Soon)_
-- [Deployment Guide](Documentation/DEPLOYMENT.md) _(Coming Soon)_
-- [Troubleshooting](Documentation/TROUBLESHOOTING.md) _(Coming Soon)_
-
 Project Structure (High Level)
 src/
 app/ Application routes, layouts, pages
@@ -111,21 +105,75 @@ This structure supports modularity, clarity, and maintainability across multiple
 
 Environment Configuration
 
-UngenAI uses environment variables for all sensitive or deployment specific configuration.
+UngenAI uses environment variables for all sensitive or deployment specific configuration. All variables should be added to `.env.local` in the project root.
 
-DATABASE_URL=
-OPENAI_API_KEY=
-AUTH_SECRET=
-NEXT_PUBLIC_APP_URL=
-STORAGE_BUCKET=
-NEXT_PUBLIC_SENTRY_DSN=
+## Required Environment Variables
 
-Additional variables may be required depending on:
+### Database & Authentication
 
-• SSO integrations
-• Other model providers
-• Billing systems
-• Analytics and monitoring tools
+```bash
+# Database
+DATABASE_URL=postgresql://...
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+### AI Model Providers
+
+```bash
+# Cloudflare AI (Primary)
+CLOUDFLARE_API_TOKEN=...
+CLOUDFLARE_ACCOUNT_ID=...
+
+# Anthropic Claude (Advanced features)
+ANTHROPIC_API_KEY=...
+
+# Optional: Hugging Face (Fallback)
+HUGGINGFACE_API_KEY=...
+```
+
+### Payment Processing
+
+```bash
+# Stripe
+STRIPE_SECRET_KEY=...
+STRIPE_PRO_PRICE_ID=...
+STRIPE_ENTERPRISE_PRICE_ID=...
+NEXT_PUBLIC_STRIPE_PUBLIC_KEY=...
+STRIPE_WEBHOOK_SECRET=...
+```
+
+### Application Configuration
+
+```bash
+# NextAuth
+NEXTAUTH_SECRET=...
+NEXTAUTH_URL=...
+
+# App Settings
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Caching (Optional)
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+### Development/Optional
+
+```bash
+# Custom key for extensions
+CUSTOM_KEY=...
+
+# Google OAuth (if using Google login)
+# Client ID and secret in comments in .env.local
+```
+
+## Environment Variables Reference
+
+For a complete list of all environment variables used in the codebase and their purposes, see the [API Endpoints documentation](Documentation/API_ENDPOINTS.md).
 
 Security and Compliance
 

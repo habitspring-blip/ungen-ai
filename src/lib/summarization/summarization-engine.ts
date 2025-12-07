@@ -455,6 +455,22 @@ Paraphrased version:`;
       neutral: 'Use clear, professional language without being overly formal or casual.',
       simple: 'Use simple words and short sentences. Avoid jargon.',
       academic: 'Use academic and technical terminology appropriate for scholarly writing.',
+      angry: 'Use angry, frustrated language with strong emotional intensity.',
+      sad: 'Use melancholic, sorrowful language that conveys sadness and emotion.',
+      inspirational: 'Use motivational, uplifting language that inspires and encourages.',
+      sarcastic: 'Use ironic, mocking language with subtle sarcasm and wit.',
+      witty: 'Use clever, humorous language with sharp intelligence and wordplay.',
+      enthusiastic: 'Use energetic, excited language that shows passion and enthusiasm.',
+      serious: 'Use grave, solemn language that conveys importance and seriousness.',
+      humorous: 'Use light-hearted, funny language that entertains and amuses.',
+      optimistic: 'Use hopeful, positive language that looks forward to good outcomes.',
+      pessimistic: 'Use cynical, negative language that expresses doubt and concern.',
+      passionate: 'Use intense, fervent language that shows deep emotion and commitment.',
+      diplomatic: 'Use tactful, careful language that avoids offense and maintains harmony.',
+      assertive: 'Use confident, direct language that expresses opinions firmly.',
+      empathetic: 'Use understanding, compassionate language that shows care for others.',
+      critical: 'Use analytical, evaluative language that examines and judges carefully.',
+      encouraging: 'Use supportive, motivating language that builds confidence and hope.',
     };
 
     const lengthInstructions = {

@@ -1,430 +1,313 @@
-# Performance Targets & Metrics
+# Performance Metrics & Targets
 
-## Overview
+## Latency Targets
 
-This document outlines the performance targets, monitoring metrics, and evaluation criteria for the AI summarizer system. Performance is measured across multiple dimensions including latency, accuracy, reliability, and user experience.
+### End-to-End Performance Requirements
 
-## 1. Latency Targets
+| Operation                 | Target (p95) | Budget Allocation                       | Critical Path   |
+| ------------------------- | ------------ | --------------------------------------- | --------------- |
+| Document Upload           | < 500ms      | Network: 200ms, Processing: 300ms       | User Experience |
+| Text Preprocessing        | < 2000ms     | Tokenization: 800ms, Embedding: 1200ms  | Model Input     |
+| Extractive Summarization  | < 1000ms     | Scoring: 600ms, Selection: 400ms        | Fast Path       |
+| Abstractive Summarization | < 5000ms     | API Call: 4000ms, Post-process: 1000ms  | Quality Path    |
+| Post-processing           | < 500ms      | Grammar: 200ms, Formatting: 300ms       | Output Quality  |
+| Cache Hit Response        | < 100ms      | Redis lookup: 50ms, Serialization: 50ms | Fast Path       |
+| **End-to-End (no cache)** | < **8000ms** | Total of all operations                 | **SLA Target**  |
 
-### End-to-End Performance Targets
+### Per-Service Breakdown
 
-| Operation                   | Target (p95) | Target (p99) | Notes                      |
-| --------------------------- | ------------ | ------------ | -------------------------- |
-| Document Upload             | < 500ms      | < 1000ms     | File validation + storage  |
-| Preprocessing               | < 2000ms     | < 5000ms     | Tokenization + embeddings  |
-| Extractive Summarization    | < 1000ms     | < 2000ms     | CPU-bound, cache-friendly  |
-| Abstractive Summarization   | < 5000ms     | < 10000ms    | GPU/API dependent          |
-| Post-processing             | < 500ms      | < 1000ms     | Grammar check + formatting |
-| Cache Hit Response          | < 100ms      | < 200ms      | Redis/Upstash lookup       |
-| **End-to-End (no cache)**   | < 8000ms     | < 15000ms    | Complete pipeline          |
-| **End-to-End (with cache)** | < 200ms      | < 500ms      | Cached responses           |
+#### Input Handler Service
 
-### API Response Time Breakdown
+**Target Latency: < 500ms (p95)**
 
-```
-Total Response Time = Network Latency + Processing Time + Database Time
+- File validation: < 50ms
+- Text extraction: < 200ms (PDF/DOCX)
+- Metadata generation: < 100ms
+- Database storage: < 150ms
+- Queue placement: < 50ms
 
-Target Distribution:
-- Network: < 50ms (CDN optimized)
-- Processing: < 2000ms (service logic)
-- Database: < 200ms (indexed queries)
-- Cache: < 50ms (in-memory lookup)
-```
+#### Preprocessing Service
 
-### Real-Time Processing Flow
+**Target Latency: < 2000ms (p95)**
 
-```
-USER_SUBMITS_TEXT(text, preferences):
+- Sentence segmentation: < 300ms
+- Tokenization: < 400ms
+- Stop word removal: < 200ms
+- Named Entity Recognition: < 600ms
+- Sentence embeddings: < 1200ms (GPU accelerated)
+- Database update: < 200ms
 
-  STEP 1: Input Handling (0-500ms)
-    → POST /api/documents/upload
-    → Validate and store in Supabase
-    → Generate document_id
-    → Set status = "preprocessing"
-    → Publish to realtime channel: {event: "document_created", document_id}
+#### Summarization Engine
 
-  STEP 2: Preprocessing (500-2000ms)
-    → Supabase Edge Function triggered
-    → Tokenize, segment, extract entities
-    → Generate sentence embeddings
-    → Store preprocessed data
-    → Set status = "ready"
-    → Publish: {event: "preprocessing_complete", document_id}
+**Extractive Mode: < 1000ms (p95)**
 
-  STEP 3: Cache Check (50ms)
-    → Query cache: SELECT FROM summaries
-      WHERE document_hash = hash(text)
-      AND config = preferences
-      AND created_at > NOW() - INTERVAL '7 days'
+- Data retrieval: < 100ms
+- Sentence scoring: < 600ms
+- Selection algorithm: < 200ms
+- Result formatting: < 100ms
 
-    IF cache_hit:
-      → Return cached summary immediately
-      → SKIP to Step 6
-    ELSE:
-      → CONTINUE to Step 4
+**Abstractive Mode: < 5000ms (p95)**
 
-  STEP 4: Summarization (1000-5000ms)
-    → POST /api/summarize with config
-    → Route to extractive or abstractive engine
-    → Call appropriate model/algorithm
-    → Generate summary_text
-    → Set status = "summarizing"
-    → Publish: {event: "summarization_progress", progress: 50%}
+- Prompt construction: < 100ms
+- API call (Cloudflare): < 4000ms
+- Response parsing: < 200ms
+- Post-processing: < 500ms
+- Quality validation: < 200ms
 
-  STEP 5: Post-Processing (200-500ms)
-    → Grammar check
-    → Redundancy removal
-    → Format output (bullets/paragraphs)
-    → Calculate metrics (ROUGE, compression ratio)
-    → Set status = "complete"
-
-  STEP 6: Delivery (50ms)
-    → Store summary in database
-    → Log usage metrics
-    → Publish: {event: "summary_complete", summary_id, summary_text}
-    → Return to user
-
-  STEP 7: Analytics Update (async)
-    → Update user statistics
-    → Generate keyword frequency
-    → Compute sentiment
-    → Store in analytics tables
-
-TOTAL LATENCY: 2-8 seconds (with cache: <100ms)
-```
-
-## 2. Quality Metrics
+## Quality Metrics
 
 ### ROUGE Scores (Recall-Oriented Understudy for Gisting Evaluation)
 
-| Metric  | Target | Description                        |
-| ------- | ------ | ---------------------------------- |
-| ROUGE-1 | > 0.45 | Unigram overlap (precision/recall) |
-| ROUGE-2 | > 0.30 | Bigram overlap                     |
-| ROUGE-L | > 0.40 | Longest common subsequence         |
-| ROUGE-W | > 0.35 | Weighted LCS                       |
+| Metric                               | Target Range | Excellent | Good      | Acceptable |
+| ------------------------------------ | ------------ | --------- | --------- | ---------- |
+| ROUGE-1 (Unigram overlap)            | 0.60-0.80    | > 0.75    | 0.65-0.75 | 0.60-0.65  |
+| ROUGE-2 (Bigram overlap)             | 0.40-0.65    | > 0.60    | 0.50-0.60 | 0.40-0.50  |
+| ROUGE-L (Longest Common Subsequence) | 0.50-0.75    | > 0.70    | 0.60-0.70 | 0.50-0.60  |
 
-### Semantic Similarity
+### Semantic Similarity Metrics
 
-```
-Semantic Similarity = cosine_similarity(
-  sentence_transformer.encode(reference_summary),
-  sentence_transformer.encode(generated_summary)
-)
+| Metric               | Target | Measurement Method             |
+| -------------------- | ------ | ------------------------------ |
+| Cosine Similarity    | > 0.80 | Sentence embeddings comparison |
+| BERTScore            | > 0.85 | Contextual similarity analysis |
+| Semantic Consistency | > 0.90 | Factual preservation check     |
 
-Target: > 0.75 (using sentence-transformers/all-MiniLM-L6-v2)
-```
+### Readability Metrics
 
-### Compression Metrics
+| Metric                      | Target Range | Interpretation                                |
+| --------------------------- | ------------ | --------------------------------------------- |
+| Flesch-Kincaid Grade Level  | 6-12         | 6th-12th grade reading level                  |
+| Flesch Reading Ease         | 40-80        | Higher scores = easier to read and understand |
+| Automated Readability Index | 6-12         | U.S. grade level equivalent                   |
 
-| Metric                | Target  | Description                  |
-| --------------------- | ------- | ---------------------------- |
-| Compression Ratio     | 0.2-0.4 | Output length / Input length |
-| Information Retention | > 0.85  | Key information preserved    |
-| Readability Score     | 60-80   | Flesch-Kincaid grade level   |
+### Content Quality Standards
 
-### Factual Consistency
+| Quality Aspect      | Target Score | Measurement Method                                 |
+| ------------------- | ------------ | -------------------------------------------------- |
+| Factual Consistency | > 0.85       | QA model verification and fact-checking algorithms |
+| Coherence           | > 0.80       | Sentence flow and logical progression analysis     |
+| Conciseness         | 0.20-0.40    | Compression ratio and word count optimization      |
+| Tone Consistency    | > 0.90       | Style analysis and tone matching algorithms        |
+| Processing Time     | < 5000ms     | End-to-end latency for summary generation          |
 
-```
-Factual Consistency Algorithm:
+## Cost Optimization
 
-FOR EACH question IN generate_questions(summary):
-  answer_reference = answer_question(question, original_text)
-  answer_summary = answer_question(question, summary)
+### Model Selection Matrix
 
-  IF answers_match(answer_reference, answer_summary):
-    correct_answers += 1
+| Task Type                       | Free Tier               | Pro Tier                | Enterprise       |
+| ------------------------------- | ----------------------- | ----------------------- | ---------------- |
+| Grammar Check                   | Cloudflare Llama 3.1 8B | Cloudflare Llama 3.1 8B | Anthropic Claude |
+| Simple Summarize (< 1000 words) | Cloudflare Llama 3.1 8B | Cloudflare Llama 3.1 8B | Anthropic Claude |
+| Complex Summarize               | Cloudflare Llama 3.1 8B | Anthropic Claude        | Anthropic Claude |
+| Creative Writing                | Cloudflare Llama 3.1 8B | Anthropic Claude        | Anthropic Claude |
 
-consistency_score = correct_answers / total_questions
-Target: > 0.90
-```
+### Cost per Operation
 
-## 3. Reliability Targets
+| Operation        | Free Tier | Pro Tier | Enterprise |
+| ---------------- | --------- | -------- | ---------- |
+| Grammar Check    | $0.001    | $0.002   | $0.005     |
+| Simple Summary   | $0.002    | $0.004   | $0.010     |
+| Complex Summary  | $0.003    | $0.008   | $0.015     |
+| Creative Rewrite | $0.004    | $0.012   | $0.025     |
 
-### Availability
+### Batch Processing Efficiency
 
-| Component          | Target    | Measurement             |
-| ------------------ | --------- | ----------------------- |
-| API Endpoints      | 99.9%     | Uptime over 30 days     |
-| Database           | 99.95%    | Supabase SLA            |
-| Cache Layer        | 99.9%     | Redis/Upstash uptime    |
-| AI Models          | 99.5%     | Service availability    |
-| **Overall System** | **99.8%** | End-to-end availability |
+**Batch Size Impact on Cost:**
 
-### Error Rates
+- Single request: 100% base cost
+- Batch of 5: 60% cost per request
+- Batch of 10: 45% cost per request
+- Batch of 20: 35% cost per request
+- Batch of 50: 25% cost per request
 
-| Error Type        | Target | Action Threshold        |
-| ----------------- | ------ | ----------------------- |
-| 4xx Client Errors | < 2%   | Monitor user experience |
-| 5xx Server Errors | < 0.5% | Immediate investigation |
-| Timeout Errors    | < 0.1% | Infrastructure scaling  |
-| AI Model Failures | < 1%   | Fallback activation     |
-
-### Data Durability
-
-- **User Data**: 99.999999999% (11 9's) durability
-- **Summaries**: 99.999999% (8 9's) durability
-- **Analytics**: 99.99% (4 9's) durability
-
-## 4. Scalability Metrics
+## Scalability Metrics
 
 ### Throughput Targets
 
-| Load Level | Requests/Second | Target Response Time |
-| ---------- | --------------- | -------------------- |
-| Normal     | < 50            | < 2000ms (p95)       |
-| Peak       | < 200           | < 5000ms (p95)       |
-| Stress     | < 500           | < 10000ms (p95)      |
+| Component     | Target TPS | Peak Capacity | Scaling Strategy   |
+| ------------- | ---------- | ------------- | ------------------ |
+| API Gateway   | 1000       | 5000          | Horizontal scaling |
+| Preprocessing | 500        | 2000          | GPU worker pools   |
+| Summarization | 200        | 1000          | Model sharding     |
+| Database      | 5000       | 20000         | Read replicas      |
+| Cache         | 10000      | 50000         | Redis cluster      |
 
 ### Resource Utilization
 
-| Resource                | Target Utilization | Scale Trigger      |
-| ----------------------- | ------------------ | ------------------ |
-| CPU (Edge Functions)    | < 70%              | Auto-scale         |
-| Memory (Edge Functions) | < 80%              | Auto-scale         |
-| Database Connections    | < 80%              | Connection pooling |
-| Cache Memory            | < 90%              | Cache eviction     |
-| Bandwidth               | < 70%              | CDN optimization   |
+#### CPU Usage Targets
 
-### Queue Performance
+- API Services: < 60% average CPU
+- ML Services: < 80% average CPU (GPU preferred)
+- Database: < 70% average CPU
+- Cache: < 40% average CPU
 
-```
-Queue Metrics:
-- Queue Depth: < 100 items (normal), < 1000 (peak)
-- Processing Rate: > 50 items/second
-- Queue Age: < 30 seconds (p95)
-- Error Rate: < 0.1%
-```
+#### Memory Usage Targets
 
-## 5. User Experience Metrics
+- API Services: < 1GB per instance
+- ML Services: < 4GB per instance (GPU memory)
+- Database: < 8GB per instance
+- Cache: < 2GB per instance
 
-### Perceived Performance
+#### Storage Targets
 
-| Interaction        | Target   | Measurement              |
-| ------------------ | -------- | ------------------------ |
-| Page Load          | < 1000ms | Time to interactive      |
-| Summary Generation | < 3000ms | First content visible    |
-| Real-time Updates  | < 500ms  | Status change visibility |
-| Error Recovery     | < 2000ms | Fallback response time   |
+- Document storage: < 100GB total
+- Cache storage: < 50GB total
+- Database storage: < 500GB total
+- Backup storage: < 2TB total
 
-### User Satisfaction
+## Error Rates & Reliability
 
-| Metric               | Target  | Collection Method     |
-| -------------------- | ------- | --------------------- |
-| Task Completion Rate | > 95%   | Analytics tracking    |
-| User Rating Average  | > 4.2/5 | Post-summary feedback |
-| Return Usage Rate    | > 70%   | Weekly active users   |
-| Feature Adoption     | > 60%   | Usage analytics       |
+### Service Level Objectives (SLOs)
 
-### Accessibility Metrics
+| Service              | Availability Target | Error Budget | MTTR         |
+| -------------------- | ------------------- | ------------ | ------------ |
+| API Gateway          | 99.9%               | 0.1%         | < 5 minutes  |
+| Summarization Engine | 99.5%               | 0.5%         | < 15 minutes |
+| Database             | 99.95%              | 0.05%        | < 10 minutes |
+| Cache                | 99.9%               | 0.1%         | < 5 minutes  |
+| External APIs        | 99.0%               | 1.0%         | < 30 minutes |
 
-- **WCAG 2.1 AA Compliance**: 100%
-- **Screen Reader Support**: Full compatibility
-- **Keyboard Navigation**: Complete coverage
-- **Color Contrast**: > 4.5:1 ratio
-- **Loading States**: All async operations
+### Error Rate Targets
 
-## 6. Cost Efficiency Metrics
+| Error Type        | Target Rate | Alert Threshold |
+| ----------------- | ----------- | --------------- |
+| 4xx Client Errors | < 5%        | > 10%           |
+| 5xx Server Errors | < 1%        | > 2%            |
+| Timeout Errors    | < 2%        | > 5%            |
+| API Rate Limits   | < 3%        | > 8%            |
 
-### Cost per Request
-
-| Operation                 | Target Cost | Measurement        |
-| ------------------------- | ----------- | ------------------ |
-| Extractive Summarization  | < $0.001    | Per request        |
-| Abstractive Summarization | < $0.01     | Per request        |
-| Document Processing       | < $0.005    | Per document       |
-| **Total Cost/Request**    | **< $0.02** | **All operations** |
-
-### Infrastructure Cost Breakdown
-
-```
-Monthly Cost Distribution (Target):
-- Compute (Edge Functions): 40%
-- Database (Supabase): 25%
-- AI Models (Cloudflare/Anthropic): 20%
-- Cache (Upstash): 10%
-- CDN/Monitoring: 5%
-```
-
-### Cost Optimization Targets
-
-- **Cache Hit Rate**: > 85% (reduce AI API calls)
-- **Batch Processing Efficiency**: > 90% (GPU utilization)
-- **Idle Resource Usage**: < 10% (auto-scaling)
-- **Data Transfer Costs**: < $0.01/GB
-
-## 7. Monitoring & Alerting
+## Monitoring & Alerting
 
 ### Key Performance Indicators (KPIs)
 
-#### Real-Time Metrics
+#### User Experience KPIs
 
-```javascript
-// Response Time Distribution
-p50_response_time < 1000ms  // 50th percentile
-p95_response_time < 3000ms  // 95th percentile
-p99_response_time < 8000ms  // 99th percentile
+- Time to first summary: < 3000ms
+- Cache hit rate: > 70%
+- Error rate: < 2%
+- User satisfaction: > 4.2/5
 
-// Error Rates
-error_rate_4xx < 0.02     // 2% client errors
-error_rate_5xx < 0.005    // 0.5% server errors
+#### System Health KPIs
 
-// System Health
-cpu_utilization < 0.7     // 70% CPU usage
-memory_utilization < 0.8  // 80% memory usage
-disk_utilization < 0.8    // 80% disk usage
-```
+- CPU utilization: < 70%
+- Memory utilization: < 80%
+- Disk I/O: < 80%
+- Network latency: < 50ms
 
-#### Business Metrics
+#### Business KPIs
 
-```javascript
-// User Engagement
-daily_active_users > 1000;
-session_duration > 300; // seconds
-task_completion_rate > 0.95;
+- Cost per summary: < $0.01
+- Monthly active users: > 10,000
+- Conversion rate: > 5%
+- Churn rate: < 10%
 
-// Quality Metrics
-average_user_rating > 4.2;
-summary_helpfulness > 0.8;
-return_visit_rate > 0.7;
-```
+### Alert Configuration
 
-### Alert Thresholds
+#### Critical Alerts (Page immediately)
 
-#### Critical Alerts (Immediate Response)
+- Service down (> 5 minutes)
+- Error rate > 10%
+- Database connection failures
+- Payment processing failures
 
-- API availability < 99.5%
-- p99 response time > 15000ms
+#### Warning Alerts (Monitor closely)
+
 - Error rate > 5%
-- Database connection failures > 10/min
+- Latency > 2x target
+- Queue depth > 1000
+- Storage > 90% capacity
 
-#### Warning Alerts (Investigation Required)
+#### Info Alerts (Track trends)
 
-- p95 response time > 5000ms
-- Cache hit rate < 70%
-- Queue depth > 500 items
-- AI model failures > 5/min
+- Performance degradation > 20%
+- Unusual usage patterns
+- Model accuracy drops > 5%
 
-#### Info Alerts (Monitoring)
+## Continuous Improvement
 
-- p50 response time > 2000ms
-- User rating < 4.0
-- Resource utilization > 80%
+### A/B Testing Framework
 
-### Dashboard Metrics
-
-#### System Dashboard
-
-- Response time percentiles (p50, p95, p99)
-- Error rates by endpoint
-- Resource utilization (CPU, memory, disk)
-- Queue depths and processing rates
-- Database performance (query times, connection count)
-
-#### Business Dashboard
-
-- User acquisition and retention
-- Feature usage statistics
-- Revenue metrics (MRR, ARR)
-- Customer satisfaction scores
-- Performance by user segment
-
-#### AI/ML Dashboard
-
-- Model performance metrics (ROUGE scores)
-- API usage and costs
-- Model version comparisons
-- A/B test results
-- Training pipeline status
-
-## 8. Evaluation Framework
-
-### Automated Testing
-
-#### Performance Regression Tests
-
-```bash
-# Load Testing
-k6 run --vus 100 --duration 5m performance-test.js
-
-# API Benchmarking
-artillery quick --count 1000 --num 10 http://localhost:3000/api/summarize
-
-# Database Performance
-pgbench -c 10 -j 2 -T 60 postgres://...
+```
+EXPERIMENT_CONFIG:
+  name: "model_comparison_q4_2024"
+  variants: [
+    { name: "claude_3_5", weight: 0.5 },
+    { name: "llama_3_1_70b", weight: 0.3 },
+    { name: "gpt_4_turbo", weight: 0.2 }
+  ]
+  metrics: [
+    "user_satisfaction",
+    "processing_time",
+    "cost_per_request",
+    "quality_score"
+  ]
+  duration: "30 days"
+  success_criteria: {
+    user_satisfaction: "> 4.3",
+    cost_reduction: "> 15%"
+  }
 ```
 
-#### Quality Assurance Tests
+### Performance Regression Detection
 
-```javascript
-// ROUGE Score Validation
-const rouge = calculateROUGE(generatedSummary, referenceSummary);
-assert(rouge.rouge1 > 0.45, "ROUGE-1 score too low");
-
-// Semantic Similarity Check
-const similarity = cosineSimilarity(embeddings);
-assert(similarity > 0.75, "Semantic similarity too low");
-
-// Factual Consistency Test
-const consistency = checkFactualConsistency(original, summary);
-assert(consistency > 0.9, "Factual consistency too low");
+```
+REGRESSION_MONITORING:
+  baseline_period: "30 days"
+  comparison_period: "7 days"
+  regression_thresholds: {
+    latency_increase: "> 20%",
+    error_rate_increase: "> 50%",
+    quality_decrease: "> 10%"
+  }
+  auto_rollback: true
+  notification_channels: ["slack", "email", "pagerduty"]
 ```
 
-### Continuous Monitoring
+## Load Testing Scenarios
 
-#### Synthetic Monitoring
+### Normal Load
 
-- **Heartbeat Checks**: Every 30 seconds
-- **API Endpoint Tests**: Every 5 minutes
-- **Full User Journey**: Every 15 minutes
-- **Performance Benchmarks**: Hourly
+- 100 concurrent users
+- 500 requests/minute
+- Average response time: < 2000ms
+- Error rate: < 1%
 
-#### Real User Monitoring (RUM)
+### Peak Load
 
-- **Core Web Vitals**: LCP, FID, CLS
-- **Custom Metrics**: Time to summary, error rates
-- **User Journey Tracking**: Conversion funnels
-- **Performance by Geography**: Regional analysis
+- 500 concurrent users
+- 2000 requests/minute
+- 95th percentile: < 5000ms
+- Error rate: < 3%
 
-### Incident Response
+### Stress Load
 
-#### Severity Levels
+- 1000 concurrent users
+- 5000 requests/minute
+- System remains stable
+- Graceful degradation
 
-1. **Critical**: System down, data loss, security breach
-2. **High**: Degraded performance, partial outage
-3. **Medium**: Feature broken, performance degradation
-4. **Low**: Minor issues, monitoring alerts
+## Cost-Benefit Analysis
 
-#### Response Times
+### Performance vs Cost Trade-offs
 
-- **Critical**: < 15 minutes
-- **High**: < 1 hour
-- **Medium**: < 4 hours
-- **Low**: < 24 hours
+| Optimization       | Performance Impact         | Cost Impact    | ROI |
+| ------------------ | -------------------------- | -------------- | --- |
+| Add Redis caching  | -50% latency               | +$50/month     | 10x |
+| GPU acceleration   | -70% ML latency            | +$200/month    | 5x  |
+| Model quantization | -20% latency, -10% quality | -30% API costs | 8x  |
+| Batch processing   | -40% per-request cost      | Minimal        | 15x |
+| CDN for assets     | -30% page load             | +$20/month     | 20x |
 
-### Performance Budget
+### Scaling Economics
 
-#### Per-Page Budgets
-
-```javascript
-// Core Web Vitals Budgets
-const LCP = 2500; // Largest Contentful Paint
-const FID = 100; // First Input Delay
-const CLS = 0.1; // Cumulative Layout Shift
-
-// Custom Performance Budgets
-const summaryGeneration = 5000; // Max time for summary generation
-const apiResponse = 2000; // Max API response time
-const pageLoad = 3000; // Max page load time
 ```
+COST_SCALING_MODEL:
+  base_cost_per_user: $0.50/month
+  marginal_cost_per_user: $0.10/month (after 1000 users)
+  infrastructure_cost: $2000/month (fixed)
+  api_cost_per_1000_summaries: $5.00
 
-#### Bundle Size Budgets
-
-```javascript
-const jsBudget = 200 * 1024; // 200KB JavaScript
-const cssBudget = 50 * 1024; // 50KB CSS
-const imageBudget = 500 * 1024; // 500KB images
-const totalBudget = 1024 * 1024; // 1MB total
+  breakeven_users: 4000
+  profit_margin_at_10000_users: 65%
+  scaling_efficiency: 85% (cost per user decreases with scale)
 ```
-
-This performance framework ensures the AI summarizer delivers high-quality, fast, and reliable service while maintaining cost efficiency and excellent user experience.

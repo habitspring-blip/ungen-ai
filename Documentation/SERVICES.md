@@ -1,14 +1,8 @@
 # Service Decomposition Details
 
-## Microservices Architecture
+## Input Handler Service
 
-This document details the decomposition of the AI summarizer into specialized microservices, each handling specific aspects of the text processing pipeline.
-
-## 1. Input Handler Service
-
-### Location
-
-**Next.js API Route:** `/api/input/process`
+**Location:** Next.js API Route `/api/input/process`
 
 ### Responsibilities
 
@@ -55,17 +49,11 @@ INPUT_HANDLER(file, metadata):
 - `SUPPORTED_FORMATS`: ['.txt', '.pdf', '.docx', '.html']
 - `MAX_TEXT_LENGTH`: 50,000 words
 
-### Dependencies
+---
 
-- `mammoth`: DOCX parsing
-- `pdf-parse`: PDF text extraction
-- `jsdom`: HTML parsing
+## Text Preprocessing Service
 
-## 2. Text Preprocessing Service
-
-### Location
-
-**Supabase Edge Function:** `preprocess-text`
+**Location:** Supabase Edge Function `preprocess-text`
 
 ### Responsibilities
 
@@ -133,17 +121,11 @@ PREPROCESS(document_id):
 - `NER_MODEL`: "dslim/bert-base-NER"
 - `MIN_SENTENCE_LENGTH`: 10 words
 
-### Performance Characteristics
+---
 
-- **CPU Intensive**: Runs on Edge Functions for parallel processing
-- **Memory Usage**: ~50MB per document
-- **Execution Time**: 500-2000ms depending on document length
+## Summarization Engine Service
 
-## 3. Summarization Engine Service
-
-### Location
-
-**Supabase Edge Function:** `generate-summary`
+**Location:** Supabase Edge Function `generate-summary`
 
 ### Responsibilities
 
@@ -283,11 +265,11 @@ ABSTRACTIVE_SUMMARIZE(document_id, config):
 - **Length Ratios:** Short=0.2, Medium=0.3, Long=0.5
 - **Temperature:** 0.7 (balance creativity/consistency)
 
-## 4. Post-Processing Service
+---
 
-### Location
+## Post-Processing Service
 
-**Supabase Edge Function:** `post-process`
+**Location:** Supabase Edge Function `post-process`
 
 ### Algorithm Flow
 
@@ -327,238 +309,247 @@ POST_PROCESS(summary, config):
   7. RETURN {summary, metadata}
 ```
 
-## 5. Cache Management Service
+---
 
-### Location
+## Model Selection and Cost Optimization
 
-**Redis/Upstash Integration**
-
-### Responsibilities
-
-- Cache generated summaries
-- Cache preprocessed data
-- Implement TTL-based expiration
-- Handle cache invalidation
-
-### Cache Strategy
+### Cost-Aware Model Routing
 
 ```
-CACHE_KEY_FORMAT:
-  summary:{document_hash}:{config_hash}
-  preprocessing:{document_id}
-  embeddings:{document_id}
+SELECT_MODEL(intent, user_plan, text_length):
+  // Cost optimization based on user plan and task complexity
 
-CACHE_TTL:
-  summaries: 7 days
-  preprocessing: 30 days
-  embeddings: 30 days
+  IF user_plan == "free":
+    // Always use cheapest option for free users
+    RETURN { provider: "cloudflare", model: "llama-3.1-8b", cost: 0.001 }
 
-INVALIDATION_EVENTS:
-  - User feedback submission (clear related caches)
-  - Model version updates (clear all caches)
-  - Document updates (clear document-specific caches)
+  ELSE IF intent == "grammar_check" OR intent == "simplify":
+    // Simple tasks use cheaper models
+    RETURN { provider: "cloudflare", model: "llama-3.1-8b", cost: 0.002 }
+
+  ELSE IF text_length < 1000 AND intent == "summarize":
+    // Short texts use efficient models
+    RETURN { provider: "cloudflare", model: "llama-3.1-8b", cost: 0.003 }
+
+  ELSE:
+    // Complex tasks use high-quality models
+    RETURN { provider: "anthropic", model: "claude-3-5-sonnet", cost: 0.015 }
+
+  // Apply team discounts and volume pricing
+  final_cost = applyDiscounts(base_cost, user_plan, team_size)
+  RETURN model_config with final_cost
 ```
 
-## 6. Feedback Collection Service
-
-### Location
-
-**Next.js API Route:** `/api/feedback`
-
-### Responsibilities
-
-- Collect user ratings and feedback
-- Store feedback for analysis
-- Trigger retraining pipelines
-- Update model performance metrics
-
-### Algorithm Flow
+### Dynamic Batching
 
 ```
-COLLECT_FEEDBACK(summary_id, user_feedback):
+OPTIMIZE_BATCH(requests):
+  // Group similar requests for efficient processing
 
-  1. Store feedback in database
-     INSERT INTO feedback (summary_id, rating, feedback_type, comments, edited_summary)
+  batches = groupByModelAndConfig(requests)
 
-  2. IF user provided edited_summary:
-       // Create training example
-       original_doc = GET document FROM summaries WHERE id = summary_id
-       training_example = {
-         input: original_doc.text,
-         target: user_feedback.edited_summary,
-         quality_score: user_feedback.rating,
-         feedback_type: user_feedback.feedback_type
-       }
+  FOR EACH batch IN batches:
+    IF batch.size > 1:
+      // Process as batch for GPU efficiency
+      results = model.batch_process(batch.texts, batch.config)
+      // Cost per request decreases with batch size
+      cost_per_request = base_cost / sqrt(batch.size)
+    ELSE:
+      // Single request processing
+      results = model.process_single(batch.texts[0], batch.config)
+      cost_per_request = base_cost
 
-       APPEND to training_data_queue
-
-  3. // Update model confidence scores
-     IF rating < 3:  // Poor rating
-       model_version = GET model_version FROM summaries WHERE id = summary_id
-       UPDATE model_versions
-       SET negative_feedback_count = negative_feedback_count + 1
-       WHERE id = model_version
-
-  4. // Trigger retraining check
-     feedback_count = COUNT FROM feedback WHERE created_at > NOW() - INTERVAL '7 days'
-     IF feedback_count > RETRAINING_THRESHOLD:
-       ENQUEUE(retraining_pipeline, "collect_and_retrain")
+    // Distribute results back to individual requests
+    distributeResults(batch.requests, results, cost_per_request)
 ```
 
-## 7. Analytics and Monitoring Service
+---
 
-### Location
+## Quality Assurance Pipeline
 
-**Supabase Edge Functions + Database**
-
-### Responsibilities
-
-- Track usage metrics
-- Monitor system performance
-- Generate user analytics
-- Alert on anomalies
-
-### Key Metrics Tracked
+### Automated Quality Checks
 
 ```
-USER_METRICS:
-  - Total summaries generated
-  - Average processing time
-  - Preferred summarization methods
-  - Usage patterns by time/day
+QUALITY_CHECK(summary, original_text, config):
+  metrics = {}
 
-SYSTEM_METRICS:
-  - API response times (p50, p95, p99)
-  - Error rates by endpoint
-  - Cache hit/miss ratios
-  - Model performance scores
+  // 1. ROUGE Score (Recall-Oriented Understudy for Gisting Evaluation)
+  rouge_scores = computeROUGE(summary, reference_summary)
+  metrics.rouge_1 = rouge_scores.rouge_1.f_measure
+  metrics.rouge_2 = rouge_scores.rouge_2.f_measure
+  metrics.rouge_l = rouge_scores.rouge_l.f_measure
 
-BUSINESS_METRICS:
-  - User retention rates
-  - Feature adoption rates
-  - Revenue per user
-  - Customer satisfaction scores
+  // 2. Semantic Similarity
+  original_embedding = computeEmbedding(original_text)
+  summary_embedding = computeEmbedding(summary)
+  metrics.semantic_similarity = cosineSimilarity(original_embedding, summary_embedding)
+
+  // 3. Readability Analysis
+  metrics.readability = calculateFleschKincaid(summary)
+  metrics.complexity_level = assessComplexity(summary)
+
+  // 4. Factual Consistency
+  metrics.factual_consistency = checkFactualConsistency(original_text, summary)
+
+  // 5. Tone Analysis
+  metrics.tone_match = analyzeToneMatch(summary, config.tone)
+
+  // 6. Length Compliance
+  metrics.length_compliance = checkLengthCompliance(summary, config.length)
+
+  // Overall quality score
+  metrics.overall_score = weightedAverage(metrics, QUALITY_WEIGHTS)
+
+  RETURN metrics
 ```
 
-## 8. Model Management Service
+### Quality Thresholds
 
-### Location
-
-**Admin Dashboard + Database**
-
-### Responsibilities
-
-- Version control for AI models
-- A/B testing framework
-- Performance monitoring
-- Automated model updates
-
-### Model Lifecycle
-
-```
-MODEL_DEPLOYMENT:
-  1. Train new model version
-  2. Evaluate on test set
-  3. Deploy to staging environment
-  4. Run A/B test (10% traffic)
-  5. Monitor performance metrics
-  6. Gradual rollout if successful
-  7. Archive old version
-
-PERFORMANCE_MONITORING:
-  - ROUGE scores comparison
-  - User satisfaction ratings
-  - Processing latency
-  - Error rates
-  - Cost per request
+```javascript
+const QUALITY_THRESHOLDS = {
+  rouge_1: { min: 0.6, target: 0.75 },
+  semantic_similarity: { min: 0.7, target: 0.85 },
+  readability: { min: 40, target: 60 }, // Flesch score
+  factual_consistency: { min: 0.8, target: 0.95 },
+  overall_score: { min: 0.65, target: 0.8 },
+};
 ```
 
-## Service Communication Patterns
+---
 
-### Synchronous Communication
-
-- REST API calls between Next.js and Supabase
-- Direct database queries
-- Real-time subscriptions via Supabase Realtime
-
-### Asynchronous Communication
-
-- Queue-based processing (preprocessing, summarization)
-- Event-driven architecture (status updates)
-- Background job processing (analytics, retraining)
-
-### Data Flow Patterns
-
-```
-USER_REQUEST → API_GATEWAY → SERVICE_ROUTER → PROCESSING_QUEUE
-                                                       ↓
-CACHE_CHECK → {HIT: RETURN_CACHED} | {MISS: PROCESS}
-                                                       ↓
-PREPROCESSING → SUMMARIZATION → POST_PROCESSING → CACHE_STORE
-                                                       ↓
-RESPONSE ← REAL_TIME_UPDATES ← STATUS_BROADCAST
-```
-
-## Error Handling and Resilience
+## Error Handling and Recovery
 
 ### Circuit Breaker Pattern
 
 ```
-FOR EACH external_service_call:
-  IF circuit_breaker.is_open():
-    RETURN fallback_response
+CIRCUIT_BREAKER(service_name):
+  state = "CLOSED"  // CLOSED, OPEN, HALF_OPEN
+  failure_count = 0
+  last_failure_time = null
+  success_count = 0
 
-  TRY:
-    response = call_external_service()
-    circuit_breaker.record_success()
-    RETURN response
-  EXCEPT timeout OR error:
-    circuit_breaker.record_failure()
-    IF circuit_breaker.should_open():
-      circuit_breaker.open()
-    RETURN fallback_response
-```
+  FUNCTION callService(request):
+    IF state == "OPEN":
+      IF timeSince(last_failure_time) > TIMEOUT:
+        state = "HALF_OPEN"
+      ELSE:
+        RETURN fallbackResponse()
 
-### Retry Logic with Exponential Backoff
+    TRY:
+      response = service.call(request)
+      onSuccess()
+      RETURN response
+    CATCH error:
+      onFailure()
+      IF state == "HALF_OPEN":
+        state = "OPEN"
+      RETURN fallbackResponse()
 
-```
-MAX_RETRIES = 3
-BASE_DELAY = 1000ms
+  FUNCTION onSuccess():
+    failure_count = 0
+    IF state == "HALF_OPEN":
+      success_count++
+      IF success_count >= SUCCESS_THRESHOLD:
+        state = "CLOSED"
+        success_count = 0
 
-FOR attempt IN 1..MAX_RETRIES:
-  TRY:
-    RETURN call_service()
-  EXCEPT retryable_error:
-    IF attempt < MAX_RETRIES:
-      delay = BASE_DELAY * (2 ^ (attempt - 1))
-      WAIT delay + random_jitter()
-    ELSE:
-      RAISE final_error
+  FUNCTION onFailure():
+    failure_count++
+    last_failure_time = NOW()
+    IF failure_count >= FAILURE_THRESHOLD:
+      state = "OPEN"
 ```
 
 ### Fallback Strategies
 
-- **Model Fallbacks**: Cloudflare → Anthropic → Local implementation
-- **Cache Fallbacks**: Redis → Database → Fresh computation
-- **Service Fallbacks**: Primary service → Backup service → Degraded mode
+```
+FALLBACK_STRATEGY(original_request, error):
+  // Multi-level fallback system
 
-## Scaling Considerations
+  IF error.type == "API_RATE_LIMIT":
+    // Wait and retry with exponential backoff
+    RETURN retryWithBackoff(original_request)
 
-### Horizontal Scaling
+  ELSE IF error.type == "MODEL_UNAVAILABLE":
+    // Switch to alternative model
+    RETURN routeToAlternativeModel(original_request)
 
-- **Stateless Services**: API routes can be scaled horizontally
-- **Stateful Services**: Use external state stores (Supabase, Redis)
-- **Edge Functions**: Automatically scale with request volume
+  ELSE IF error.type == "NETWORK_ERROR":
+    // Use cached response if available
+    cached = checkCache(original_request)
+    IF cached:
+      RETURN cached
+    ELSE:
+      RETURN simplifiedResponse(original_request)
 
-### Vertical Scaling
+  ELSE:
+    // Generic fallback
+    RETURN generateBasicSummary(original_request)
+```
 
-- **Memory Intensive**: Preprocessing and embedding generation
-- **CPU Intensive**: Model inference and text processing
-- **I/O Intensive**: Database queries and file processing
+---
 
-### Auto-scaling Triggers
+## Performance Monitoring
 
-- CPU utilization > 70%
-- Memory usage > 80%
-- Queue depth > 100 items
-- Response time > 2000ms (p95)
+### Real-Time Metrics Collection
+
+```
+METRICS_COLLECTOR:
+  // Collect performance data for all services
+
+  FUNCTION recordRequest(service, request, response, duration):
+    metrics = {
+      service_name: service,
+      request_size: calculateSize(request),
+      response_size: calculateSize(response),
+      processing_time: duration,
+      success: response.success,
+      error_type: response.error?.type,
+      model_used: response.model,
+      cost_incurred: response.cost,
+      timestamp: NOW()
+    }
+
+    // Store in time-series database
+    timeSeriesDB.insert("performance_metrics", metrics)
+
+    // Update real-time dashboards
+    updateDashboards(metrics)
+
+    // Trigger alerts if thresholds exceeded
+    checkAlerts(metrics)
+
+  FUNCTION calculatePercentiles(metric_name, time_window):
+    // Calculate p50, p95, p99 for performance monitoring
+    data = timeSeriesDB.query(metric_name, time_window)
+    RETURN {
+      p50: percentile(data, 50),
+      p95: percentile(data, 95),
+      p99: percentile(data, 99),
+      avg: mean(data)
+    }
+```
+
+### Service Health Checks
+
+```
+HEALTH_CHECK(service_name):
+  checks = {
+    database: checkDatabaseConnection(),
+    cache: checkRedisConnection(),
+    external_apis: checkAPIEndpoints(),
+    queue: checkQueueDepth(),
+    memory: checkMemoryUsage(),
+    cpu: checkCPUUsage()
+  }
+
+  overall_health = determineOverallHealth(checks)
+
+  RETURN {
+    service: service_name,
+    status: overall_health, // "healthy", "degraded", "unhealthy"
+    checks: checks,
+    timestamp: NOW(),
+    version: getCurrentVersion()
+  }
+```
