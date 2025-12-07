@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'  // ✅ CORRECT
 
+interface WeeklySummary {
+  createdAt: Date | null;
+  metrics: any;
+}
+
 
 export async function GET(request: Request) {
   try {
@@ -20,14 +25,14 @@ export async function GET(request: Request) {
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(now.getDate() - 6);
 
-    const rewrites = await prisma.rewrite.findMany({
+    const summaries = await prisma.summary.findMany({
       where: {
         userId,
         createdAt: { gte: sevenDaysAgo },
       },
       select: {
         createdAt: true,
-        wordCount: true,
+        metrics: true,
       },
     });
 
@@ -42,12 +47,13 @@ export async function GET(request: Request) {
       const nextDate = new Date(date);
       nextDate.setDate(date.getDate() + 1);
 
-      const dayRewrites = rewrites.filter(r => {
-        const rewriteDate = new Date(r.createdAt);
-        return rewriteDate >= date && rewriteDate < nextDate;
+      const daySummaries = summaries.filter((s: WeeklySummary) => {
+        if (!s.createdAt) return false;
+        const summaryDate = new Date(s.createdAt);
+        return summaryDate >= date && summaryDate < nextDate;
       });
 
-      const totalWords = dayRewrites.reduce((sum, r) => sum + r.wordCount, 0);
+      const totalWords = daySummaries.reduce((sum: number, s: WeeklySummary) => sum + (s.metrics?.wordCount || 0), 0);
 
       weeklyData.push({
         day: dayNames[date.getDay()],
