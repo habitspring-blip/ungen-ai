@@ -245,24 +245,6 @@ export default function EnhancedTopbar() {
           </div>
         </div>
 
-        {/* Mobile Navigation (for smaller screens) */}
-        <div className="md:hidden border-t border-slate-100 py-2">
-          <div className="flex overflow-x-auto gap-2 pb-2">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex-shrink-0 px-3 py-1 text-sm font-medium rounded-lg transition whitespace-nowrap ${
-                  pathname === item.href
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Mobile Navigation Drawer */}
