@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { AdvancedSummarizer } from '@/lib/summarization';
 import { RealTimeProcessor } from '@/lib/summarization/real-time-processor';
 import { validateSummarizationConfig } from '@/lib/summarization/utils/validation';
-import type { SummarizationConfig, SummaryResult } from '@/lib/summarization/types';
+import type { SummarizationConfig, SummaryResult, FeedbackData } from '@/lib/summarization/types';
 
 // Initialize services
 const summarizer = new AdvancedSummarizer();

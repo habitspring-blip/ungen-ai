@@ -11,6 +11,7 @@ datasource db {
 model User {
   id        String   @id @db.Uuid
   email     String?  @db.VarChar(255)
+  credits   Int?     @default(1000)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -79,14 +80,14 @@ model Feedback {
 
 model UsageLog {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId          String?   @map("user_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
   action          String?
   documentId      String?   @map("document_id") @db.Uuid
   summaryId       String?   @map("summary_id") @db.Uuid
-  processing_time Int?
+  processingTime  Int?      @map("processing_time")
   tokensUsed      Int?      @map("tokens_used")
   createdAt       DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
-  user            User?     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user            User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([userId], map: "idx_usage_logs_user_id")
   @@map("usage_logs")
