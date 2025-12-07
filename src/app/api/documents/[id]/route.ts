@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 // GET /api/documents/[id] - Get document details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
@@ -19,10 +19,10 @@ export async function GET(
       );
     }
 
-    const documentId = params.id;
+    const { id: documentId } = await params;
 
     // Get document with related data
-    const document = await prisma.document.findUnique({
+    const document = await (prisma as any).document.findUnique({
       where: {
         id: documentId,
         userId: user.id
@@ -94,7 +94,7 @@ export async function GET(
 // DELETE /api/documents/[id] - Delete document
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
@@ -108,10 +108,10 @@ export async function DELETE(
       );
     }
 
-    const documentId = params.id;
+    const { id: documentId } = await params;
 
     // Check if document exists and belongs to user
-    const document = await prisma.document.findUnique({
+    const document = await (prisma as any).document.findUnique({
       where: {
         id: documentId,
         userId: user.id
@@ -126,7 +126,7 @@ export async function DELETE(
     }
 
     // Delete document (cascade will handle related records)
-    await prisma.document.delete({
+    await (prisma as any).document.delete({
       where: { id: documentId }
     });
 
