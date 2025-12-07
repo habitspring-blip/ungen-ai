@@ -28,8 +28,11 @@ export async function executeRewriteStream(
   request: RewriteRequest,
   userId: string
 ): Promise<Response> {
+  // Check user plan for cost optimization
+  const userPlan = await getUserPlan(userId);
+
   // Semantic Routing: Cost-optimized model selection
-  const selectedModel = selectModelByIntent(request.intent);
+  const selectedModel = selectModelByIntent(request.intent, userPlan);
 
   try {
     let response: Response;
@@ -95,14 +98,39 @@ export async function executeRewriteStream(
 }
 
 /**
- * Semantic Routing: Selects the most cost-effective model based on intent.
- * Uses simple heuristic to balance cost and quality.
+ * Gets the user's plan type for cost optimization
+ */
+async function getUserPlan(userId: string): Promise<string> {
+  try {
+    const user = await (prisma as any).profile.findUnique({
+      where: { userId: userId },
+      select: { plan: true }
+    });
+    return user?.plan || 'Free';
+  } catch (error) {
+    console.error('Error fetching user plan:', error);
+    return 'Free'; // Default to free plan on error
+  }
+}
+
+/**
+ * Semantic Routing: Selects the most cost-effective model based on intent and user plan.
+ * Free users always get Cloudflare for cost optimization.
  *
  * @param intent - The rewrite intent
+ * @param userPlan - The user's plan type
  * @returns Selected model configuration
  */
-function selectModelByIntent(intent: RewriteRequest['intent']) {
-  // Cost-saving heuristic: Use cheap/fast models for simple tasks
+function selectModelByIntent(intent: RewriteRequest['intent'], userPlan: string = 'Free') {
+  // Free plan users always use Cloudflare for cost optimization
+  if (userPlan === 'Free') {
+    return {
+      type: 'cloudflare' as const,
+      modelId: '@cf/meta/llama-3.1-8b-instruct'
+    };
+  }
+
+  // Paid users get optimized routing based on task complexity
   const simpleTasks = ['grammar', 'simplify'];
 
   if (simpleTasks.includes(intent)) {

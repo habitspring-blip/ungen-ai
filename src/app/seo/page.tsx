@@ -8,6 +8,7 @@ import UpgradeModal from '@/components/ui/UpgradeModal';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useToolUsage } from '@/hooks/useToolUsage';
 
 interface SEOAnalysis {
   wordCount: number;
@@ -47,6 +48,7 @@ export default function SEOMagicPage() {
 
   const { user, setUser } = useUser();
   const router = useRouter();
+  const { canUse: canUseSEO, remainingUses: seoRemainingUses, attemptUsage: attemptSEOUsage } = useToolUsage('seo');
 
   // Redirect to login if not authenticated, but preserve input
   useEffect(() => {
@@ -80,9 +82,14 @@ export default function SEOMagicPage() {
       return;
     }
 
-    // Check credits (estimate 5 credits per word of output)
-    const estimatedCredits = Math.max(100, text.split(/\s+/).length * 5); // Minimum 100 credits
-    if (user.credits < estimatedCredits) {
+    // Check tool usage (allow one free use per tool)
+    if (!canUseSEO) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    // Record tool usage
+    if (!attemptSEOUsage()) {
       setShowUpgradeModal(true);
       return;
     }
@@ -133,9 +140,9 @@ export default function SEOMagicPage() {
         ]);
       } else {
         if (response.status === 402) {
-          // Insufficient credits
+          // Tool usage limit reached
           setShowUpgradeModal(true);
-          setError(`Insufficient credits. Required: ${data.requiredCredits}, Available: ${data.availableCredits}`);
+          setError('You have used your free SEO analysis. Upgrade to continue using this tool.');
         } else {
           setError(data.error || 'SEO analysis failed');
         }
@@ -220,6 +227,11 @@ export default function SEOMagicPage() {
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-slate-500">
                     {text.length} characters • {text.split(/\s+/).filter(w => w.length > 0).length} words
+                    {seoRemainingUses > 0 && (
+                      <span className="ml-2 text-indigo-600 font-medium">
+                        • {seoRemainingUses} free use{seoRemainingUses !== 1 ? 's' : ''} remaining
+                      </span>
+                    )}
                   </div>
 
                   <PremiumButton
@@ -412,7 +424,7 @@ export default function SEOMagicPage() {
       <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
-        message="You've exhausted your free credits. Upgrade to continue optimizing content for search engines."
+        message="You've used your free SEO analysis. Upgrade to continue using all AI writing tools unlimited."
       />
     </div>
   );

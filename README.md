@@ -72,6 +72,31 @@ Key Architectural Principles
 • Clear separation of concerns
 • Simplified deployment workflows
 
+## Documentation
+
+For detailed technical documentation, see the following guides:
+
+### Architecture & Design
+
+- **[System Architecture Overview](Documentation/ARCHITECTURE.md)** - High-level system design, microservices, and data flow
+- **[Service Decomposition](Documentation/SERVICES.md)** - Detailed breakdown of individual services and their responsibilities
+- **[Database Schema](Documentation/DATABASE_SCHEMA.md)** - Complete database design with tables, relationships, and indexes
+
+### APIs & Integration
+
+- **[API Endpoints](Documentation/API_ENDPOINTS.md)** - Complete REST API documentation with examples
+- **[Implementation Algorithms](Documentation/ALGORITHMS.md)** - Core algorithms for summarization, evaluation, and optimization
+
+### Performance & Quality
+
+- **[Performance Targets](Documentation/PERFORMANCE.md)** - Latency targets, monitoring metrics, and quality benchmarks
+
+### Quick Links
+
+- [Environment Variables Setup](Documentation/ENVIRONMENT.md) _(Coming Soon)_
+- [Deployment Guide](Documentation/DEPLOYMENT.md) _(Coming Soon)_
+- [Troubleshooting](Documentation/TROUBLESHOOTING.md) _(Coming Soon)_
+
 Project Structure (High Level)
 src/
 app/ Application routes, layouts, pages

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import PremiumCard from '@/components/ui/PremiumCard';
-import PremiumButton from '@/components/ui/PremiumButton';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 
@@ -11,6 +10,24 @@ interface SummaryResult {
   wordCount: number;
   compressionRatio: number;
   keyPoints: string[];
+  method: string;
+  config: {
+    mode: string;
+    quality: string;
+    tone: string;
+    length: string;
+  };
+  metrics: {
+    compressionRatio: number;
+    wordCount: number;
+    sentenceCount: number;
+    readability: number;
+    coherence: number;
+    rouge1?: number;
+    semanticSimilarity?: number;
+  };
+  processingTime: number;
+  confidence?: number;
 }
 
 export default function SummarizeAIPage() {
@@ -25,6 +42,14 @@ export default function SummarizeAIPage() {
   }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'summarize' | 'history'>('summarize');
+  const [showKeyPoints, setShowKeyPoints] = useState(false);
+
+  // Summarization parameters
+  const [tone, setTone] = useState<'formal' | 'casual' | 'academic' | 'simple' | 'neutral'>('neutral');
+  const [quality, setQuality] = useState<'standard' | 'premium' | 'creative'>('standard');
+  const [length, setLength] = useState<'short' | 'medium' | 'long'>('medium');
+  const [mode, setMode] = useState<'extractive' | 'abstractive' | 'hybrid'>('abstractive');
+  const [format, setFormat] = useState<'paragraphs' | 'bullets'>('paragraphs');
 
   const { user } = useUser();
   const router = useRouter();
@@ -34,6 +59,23 @@ export default function SummarizeAIPage() {
       router.push('/login');
     }
   }, [user, router]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && text.trim() && !loading) {
+        e.preventDefault();
+        handleSummarize();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !e.shiftKey) {
+        e.preventDefault();
+        setText('');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [text, loading]);
 
   const handleSummarize = async () => {
     if (!text.trim()) {
@@ -46,68 +88,69 @@ export default function SummarizeAIPage() {
     setResult(null);
 
     try {
-      const response = await fetch('/api/rewrite', {
+      const response = await fetch('/api/summarize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           text,
-          intent: 'summarize',
-          targetTone: 'neutral',
-          targetLength: 'short'
+          mode,
+          quality,
+          tone,
+          length,
+          format
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No response stream available");
+      if (!data.success) {
+        throw new Error(data.error || 'Summarization failed');
       }
 
-      const decoder = new TextDecoder();
-      let streamedContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        streamedContent += chunk;
+      if (!data.data || !data.data.summary) {
+        throw new Error('Invalid response format: missing summary data');
       }
-
-      // Process the summary
-      const originalWords = text.trim().split(/\s+/).length;
-      const summaryWords = streamedContent.trim().split(/\s+/).length;
-      const compressionRatio = Math.round((1 - summaryWords / originalWords) * 100);
 
       const summaryResult: SummaryResult = {
-        summary: streamedContent,
-        wordCount: summaryWords,
-        compressionRatio,
-        keyPoints: extractKeyPoints(streamedContent)
+        summary: data.data.summary,
+        wordCount: data.data.metrics?.wordCount || 0,
+        compressionRatio: Math.round((data.data.metrics?.compressionRatio || 0) * 100),
+        keyPoints: extractKeyPoints(data.data.summary),
+        method: data.data.method || 'abstractive',
+        config: data.data.config || { mode, quality, tone, length },
+        metrics: data.data.metrics || {
+          compressionRatio: 0,
+          wordCount: 0,
+          sentenceCount: 0,
+          readability: 0,
+          coherence: 0
+        },
+        processingTime: data.data.processingTime || 0,
+        confidence: data.data.confidence
       };
 
       setResult(summaryResult);
 
-      // Add to history
       setHistory(prev => [
         {
           originalText: text.substring(0, 100) + '...',
-          summary: streamedContent.substring(0, 100) + '...',
-          wordCount: summaryWords,
+          summary: data.data.summary.substring(0, 100) + '...',
+          wordCount: data.data.metrics?.wordCount || 0,
           timestamp: new Date().toISOString()
         },
-        ...prev.slice(0, 9) // Keep only last 10 items
+        ...prev.slice(0, 9)
       ]);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Summarization failed. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Summarization failed. Please try again.';
+      setError(errorMessage);
       console.error('Summarization error:', err);
     } finally {
       setLoading(false);
@@ -115,22 +158,31 @@ export default function SummarizeAIPage() {
   };
 
   const extractKeyPoints = (summary: string): string[] => {
-    // Simple extraction of sentences as key points
     return summary.split(/[.!?]+/).filter(point => point.trim().length > 10).slice(0, 5);
   };
 
+  const countWords = (text: string): number => {
+    if (!text || text.trim().length === 0) return 0;
+    const cleanedText = text.trim().replace(/\s+/g, ' ');
+    const words = cleanedText.split(' ').filter(word => word.length > 0);
+    return words.length;
+  };
+
+  const currentCharCount = text.length;
+  const currentWordCount = countWords(text);
+  const maxChars = 5000;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">SummarizeAI</h1>
-        <p className="text-slate-600 mt-2">
-          Generate instant, accurate summaries of your content with AI-powered analysis
-        </p>
-      </div>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">SummarizeAI</h1>
+          <p className="text-slate-600 mt-2">
+            Generate instant, accurate summaries of your content with AI-powered analysis
+          </p>
+        </div>
 
-      {/* Tabs */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-xl shadow-sm inline-flex">
+        <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-xl shadow-sm">
           <button
             onClick={() => setActiveTab('summarize')}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
@@ -154,174 +206,228 @@ export default function SummarizeAIPage() {
         </div>
       </div>
 
-      {/* Summarization Interface */}
       {activeTab === 'summarize' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Input Section */}
-          <div className="lg:col-span-2">
-            <PremiumCard
-              title="Content to Summarize"
-              subtitle="Paste or type the text you want to summarize"
-              gradient="from-white to-slate-50"
-            >
-              <div className="space-y-4">
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Enter the text you want to summarize..."
-                  className="w-full h-64 p-4 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                />
-
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-slate-500">
-                    {text.length} characters • {text.split(/\s+/).filter(w => w.length > 0).length} words
-                  </div>
-
-                  <PremiumButton
-                    onClick={handleSummarize}
-                    disabled={loading || !text.trim()}
-                    size="md"
-                  >
-                    {loading ? (
-                      <>
-                        <svg className="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="60" strokeDashoffset="20" />
-                        </svg>
-                        Summarizing...
-                      </>
-                    ) : 'Generate Summary'}
-                  </PremiumButton>
-                </div>
-
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                    {error}
-                  </div>
-                )}
+        <div className="space-y-8">
+          <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50 rounded-xl p-4 border border-slate-200/50 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">AI Settings</h3>
+                <p className="text-xs text-slate-600">Configure summarization parameters</p>
               </div>
-            </PremiumCard>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/60 rounded-full text-xs font-medium text-slate-600">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                Ready
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center">
+                    <span className="text-white text-xs">M</span>
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm">Mode</span>
+                </div>
+                <select
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as any)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
+                >
+                  <option value="extractive">Extractive</option>
+                  <option value="abstractive">Abstractive</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-md flex items-center justify-center">
+                    <span className="text-white text-xs">Q</span>
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm">Quality</span>
+                </div>
+                <select
+                  value={quality}
+                  onChange={(e) => setQuality(e.target.value as any)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="premium">Premium</option>
+                  <option value="creative">Creative</option>
+                </select>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-md flex items-center justify-center">
+                    <span className="text-white text-xs">T</span>
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm">Tone</span>
+                </div>
+                <select
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value as any)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500 text-xs"
+                >
+                  <option value="neutral">Neutral</option>
+                  <option value="formal">Formal</option>
+                  <option value="casual">Casual</option>
+                  <option value="academic">Academic</option>
+                  <option value="simple">Simple</option>
+                </select>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-orange-600 rounded-md flex items-center justify-center">
+                    <span className="text-white text-xs">L</span>
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm">Length</span>
+                </div>
+                <select
+                  value={length}
+                  onChange={(e) => setLength(e.target.value as any)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
+                >
+                  <option value="short">Short</option>
+                  <option value="medium">Medium</option>
+                  <option value="long">Long</option>
+                </select>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-sm rounded-lg p-3 border border-white/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-pink-500 to-pink-600 rounded-md flex items-center justify-center">
+                    <span className="text-white text-xs">F</span>
+                  </div>
+                  <span className="font-medium text-slate-700 text-sm">Format</span>
+                </div>
+                <select
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as any)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 text-xs"
+                >
+                  <option value="paragraphs">Paragraphs</option>
+                  <option value="bullets">Bullets</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          {/* Results Section */}
-          <div className="lg:col-span-1">
-            {result ? (
+          <div className="flex flex-col lg:flex-row gap-8 justify-center">
+            <div className="w-full lg:w-[480px] flex flex-col">
               <PremiumCard
-                title="Summary Results"
-                subtitle={`Generated: ${new Date().toLocaleString()}`}
-                gradient="from-emerald-50 to-teal-50"
+                title="Input Text"
+                subtitle="Paste or type the content you want to summarize"
+                gradient="from-white to-slate-50"
+                className="flex-1 flex flex-col"
               >
-                <div className="space-y-6">
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-emerald-600">{result.wordCount}</div>
-                      <div className="text-xs text-slate-500">Words</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-teal-600">{result.compressionRatio}%</div>
-                      <div className="text-xs text-slate-500">Compression</div>
-                    </div>
-                  </div>
-
-                  {/* Summary Content */}
-                  <div>
-                    <div className="text-sm text-slate-600 mb-2">Summary</div>
-                    <div className="text-sm text-slate-800 leading-relaxed bg-white/50 p-3 rounded-lg border">
-                      {result.summary}
-                    </div>
-                  </div>
-
-                  {/* Key Points */}
-                  {result.keyPoints.length > 0 && (
-                    <div>
-                      <div className="text-sm text-slate-600 mb-2">Key Points</div>
-                      <div className="space-y-1">
-                        {result.keyPoints.map((point, index) => (
-                          <div key={index} className="flex items-start gap-2 text-xs text-slate-700">
-                            <span className="text-emerald-500 mt-1">•</span>
-                            <span>{point.trim()}</span>
-                          </div>
-                        ))}
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="relative flex-1 min-h-[200px]">
+                      <textarea
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder="Enter or paste your text here..."
+                        className="w-full h-full min-h-[200px] max-h-[600px] p-4 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none bg-white/50 overflow-y-auto"
+                      />
+                      <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                        <div className={`text-xs bg-white/80 px-2 py-1 rounded-md ${
+                          currentCharCount > maxChars ? 'text-red-600' : 'text-emerald-600'
+                        }`}>
+                          {currentWordCount} words • {currentCharCount}/{maxChars} chars
+                        </div>
+                        {text && (
+                          <button
+                            onClick={() => setText('')}
+                            className="text-xs text-slate-400 hover:text-slate-600 bg-white/80 p-1 rounded-md"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                     </div>
-                  )}
 
-                  {/* Copy Button */}
-                  <button
-                    onClick={() => navigator.clipboard.writeText(result.summary)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-all"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a1 1 0 01-1-1z" />
-                    </svg>
-                    Copy Summary
-                  </button>
-                </div>
-              </PremiumCard>
-            ) : (
-              <PremiumCard
-                title="Summary Results"
-                subtitle="Generate a summary to see results"
-                gradient="from-slate-50 to-slate-100"
-              >
-                <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    {error && (
+                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                        {error}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm">Summary results will appear here</p>
-                  <p className="text-xs mt-1">Paste content and click Generate Summary</p>
+
+                  <div className="flex justify-center mt-6 pt-4 border-t border-slate-100">
+                    <button
+                      onClick={handleSummarize}
+                      disabled={loading || !text.trim()}
+                      className={`px-8 py-4 rounded-2xl font-semibold text-white text-lg transition-all ${
+                        !text.trim() || loading
+                          ? 'bg-slate-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg'
+                      }`}
+                    >
+                      {loading ? 'Generating...' : 'Generate Summary'}
+                    </button>
+                  </div>
                 </div>
               </PremiumCard>
-            )}
+            </div>
+
+            <div className="w-full lg:w-[480px] flex flex-col">
+              {result ? (
+                <PremiumCard
+                  title="AI Summary"
+                  subtitle={`Generated with ${result.config.quality} quality`}
+                  gradient="from-emerald-50 to-teal-50"
+                  className="flex-1"
+                >
+                  <div className="space-y-4">
+                    <div className="bg-white/70 border border-white/50 rounded-xl p-4">
+                      <div className="text-sm text-slate-800 whitespace-pre-wrap">
+                        {result.summary}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => navigator.clipboard.writeText(result.summary)}
+                        className="flex-1 px-4 py-3 text-sm font-medium text-emerald-600 bg-emerald-50 rounded-xl"
+                      >
+                        Copy Summary
+                      </button>
+                    </div>
+                  </div>
+                </PremiumCard>
+              ) : (
+                <PremiumCard
+                  title="AI Summary Output"
+                  subtitle="Your generated summary will appear here"
+                  gradient="from-slate-50 to-slate-100"
+                >
+                  <div className="flex items-center justify-center h-96 text-slate-400">
+                    Ready to generate
+                  </div>
+                </PremiumCard>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* History Section */}
       {activeTab === 'history' && (
-        <PremiumCard
-          title="Summary History"
-          subtitle="Recent summarization sessions"
-        >
+        <PremiumCard title="Summary History" subtitle="Recent summarization sessions">
           {history.length > 0 ? (
             <div className="space-y-4">
               {history.map((item, index) => (
-                <div key={index} className="p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-slate-900 mb-2">
-                        Original: {item.originalText}
-                      </div>
-                      <div className="text-sm text-slate-700 mb-2">
-                        Summary: {item.summary}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {item.wordCount} words • {new Date(item.timestamp).toLocaleString()}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(item.summary)}
-                      className="ml-4 px-3 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all"
-                    >
-                      Copy
-                    </button>
+                <div key={index} className="p-4 border border-slate-100 rounded-lg">
+                  <div className="text-sm">{item.summary}</div>
+                  <div className="text-xs text-slate-500 mt-2">
+                    {new Date(item.timestamp).toLocaleString()}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="text-sm">No summary history yet</p>
-              <p className="text-xs mt-1">Your recent summaries will appear here</p>
-            </div>
+            <div className="text-center text-slate-400 py-12">No history yet</div>
           )}
         </PremiumCard>
       )}

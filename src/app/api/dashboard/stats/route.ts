@@ -32,8 +32,8 @@ export async function GET(request: Request) {
       where: { userId },
     });
 
-    const userRecord = await prisma.user.findUnique({
-      where: { id: userId },
+    const userRecord = await (prisma as any).profile.findUnique({
+      where: { userId: userId },
       select: { credits: true },
     });
 
