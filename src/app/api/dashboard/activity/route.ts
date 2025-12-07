@@ -6,6 +6,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from "@/lib/prisma";  // ✅ Correct
 import { formatDistanceToNow } from 'date-fns';
 
+interface SummaryActivity {
+  id: string;
+  summaryText: string;
+  metrics: any;
+  modelVersion: string | null;
+  createdAt: Date;
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
@@ -30,7 +38,7 @@ export async function GET(request: Request) {
       },
     });
 
-    const activity = recentSummaries.map(s => {
+    const activity = recentSummaries.map((s: SummaryActivity) => {
       const metrics = s.metrics as any;
       return {
         title: `Summary generated`,
