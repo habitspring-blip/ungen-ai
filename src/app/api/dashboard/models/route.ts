@@ -19,8 +19,8 @@ export async function GET(request: Request) {
 
     const userId = user.id;
 
-    const modelCounts = await prisma.rewrite.groupBy({
-      by: ['modelType'],
+    const modelCounts = await prisma.summary.groupBy({
+      by: ['modelVersion'],
       where: { userId },
       _count: { id: true },
     });
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     }
 
     const modelUsage = modelCounts.map(m => ({
-      name: formatModelName(m.modelType),
+      name: formatModelName(m.modelVersion || 'unknown'),
       percentage: Math.round((m._count.id / totalCount) * 100),
     }));
 
