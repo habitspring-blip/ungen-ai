@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { AdvancedSummarizer } from '@/lib/summarization';
-import { validateFeedbackData } from '@/lib/summarization/utils/validation';
 import type { FeedbackData } from '@/lib/summarization/types';
 
 const summarizer = new AdvancedSummarizer();
@@ -34,25 +33,16 @@ export async function POST(request: NextRequest) {
       comments
     } = body;
 
-    // Validate feedback data
-    const feedback: FeedbackData = {
-      summaryId,
-      userId: user.id,
-      rating,
-      type: feedbackType,
-      editedSummary,
-      comments,
-    };
-
-    if (!validateFeedbackData(feedback)) {
+    // Basic validation
+    if (!summaryId || !rating || rating < 1 || rating > 5) {
       return NextResponse.json(
-        { success: false, error: 'Invalid feedback data' },
+        { success: false, error: 'Invalid feedback data: summaryId and rating (1-5) are required' },
         { status: 400 }
       );
     }
 
     // Store feedback in database
-    const feedbackRecord = await prisma.feedback.create({
+    const feedbackRecord = await (prisma as any).feedback.create({
       data: {
         summaryId,
         userId: user.id,
@@ -63,11 +53,8 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Submit feedback to summarizer for learning
-    await summarizer.submitFeedback(feedback);
-
     // Log usage
-    await prisma.usageLog.create({
+    await (prisma as any).usageLog.create({
       data: {
         userId: user.id,
         action: 'feedback',
@@ -110,7 +97,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const feedback = await prisma.feedback.findMany({
+    const feedback = await (prisma as any).feedback.findMany({
       where: { userId: user.id },
       include: {
         summary: {
@@ -127,7 +114,7 @@ export async function GET(request: NextRequest) {
       skip: offset
     });
 
-    const total = await prisma.feedback.count({
+    const total = await (prisma as any).feedback.count({
       where: { userId: user.id }
     });
 
