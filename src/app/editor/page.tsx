@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { saveHistory } from "@/utils/history";
+import { useUser } from "@/context/UserContext";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 // Mock components
 const Shimmer = () => (
@@ -45,10 +48,13 @@ const Button = ({ children, className, ...props }: ButtonProps) => (
 );
 
 export default function EditorPage() {
-  const [input, setInput] = useState("");
-  const [output, setOutput] = useState("");
-  const [context, setContext] = useState("");
-  const [loading, setLoading] = useState(false);
+   const { user } = useUser();
+   const router = useRouter();
+   const [input, setInput] = useState("");
+   const [output, setOutput] = useState("");
+   const [context, setContext] = useState("");
+   const [loading, setLoading] = useState(false);
+   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
 
   const [intent, setIntent] = useState<'humanize' | 'summarize' | 'expand' | 'simplify' | 'grammar'>('humanize');
   const [targetTone, setTargetTone] = useState("professional");
@@ -89,6 +95,16 @@ export default function EditorPage() {
 
   async function handleRewrite() {
     if (!input.trim()) return;
+
+    // Check if user is logged in
+    if (!user) {
+      const hasUsedFreeTrial = localStorage.getItem('editor_free_used') === 'true';
+      if (hasUsedFreeTrial) {
+        setShowSignInPrompt(true);
+        return;
+      }
+    }
+
     setLoading(true);
     setOutput("");
 
@@ -127,6 +143,11 @@ export default function EditorPage() {
         const chunk = decoder.decode(value);
         streamedContent += chunk;
         setOutput(streamedContent);
+      }
+
+      // Mark free trial as used for non-logged-in users
+      if (!user) {
+        localStorage.setItem('editor_free_used', 'true');
       }
 
       // Save to history when streaming completes
@@ -698,6 +719,35 @@ What would you like to do?`,
         </div>
       )}
 
+      {/* Sign In Prompt Modal */}
+      {showSignInPrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md mx-4 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">You've used your free trial!</h3>
+            <p className="text-slate-600 mb-6">
+              Sign in to continue using our AI writing tools and unlock unlimited access.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSignInPrompt(false)}
+                className="flex-1 px-4 py-2 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                Maybe Later
+              </button>
+              <Link href="/login" className="flex-1">
+                <button className="w-full btn-premium text-white px-4 py-2 rounded-lg">
+                  Sign In Now
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );
