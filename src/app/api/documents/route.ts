@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      documents: documents.map(doc => ({
+      documents: documents.map((doc: any) => ({
         id: doc.id,
         file_name: doc.fileName,
         file_type: doc.fileType,
