@@ -70,7 +70,7 @@ export async function GET(
           updated_at: document.updatedAt
         },
         preprocessed: document.preprocessed,
-        summaries: document.summaries.map(summary => ({
+        summaries: document.summaries.map((summary: any) => ({
           id: summary.id,
           method: summary.method,
           model_version: summary.modelVersion,
