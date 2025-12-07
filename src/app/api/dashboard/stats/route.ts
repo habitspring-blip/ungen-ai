@@ -20,26 +20,26 @@ export async function GET(request: Request) {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const monthlyUsage = await prisma.rewrite.aggregate({
+    const monthlyUsage = await (prisma as any).summary.aggregate({
       where: {
         userId,
         createdAt: { gte: firstDayOfMonth },
       },
-      _sum: { wordCount: true },
+      _sum: { processingTime: true },
     });
 
-    const totalRewrites = await prisma.rewrite.count({
+    const totalSummaries = await (prisma as any).summary.count({
       where: { userId },
     });
 
-    const userRecord = await (prisma as any).profile.findUnique({
-      where: { userId: userId },
+    const userRecord = await (prisma as any).user.findUnique({
+      where: { id: userId },
       select: { credits: true },
     });
 
     return NextResponse.json({
-      wordsUsed: monthlyUsage._sum.wordCount || 0,
-      totalRewrites,
+      wordsUsed: monthlyUsage._sum.processingTime || 0,
+      totalSummaries,
       remainingCredits: userRecord?.credits || 0,
     });
   } catch (error) {

@@ -291,8 +291,8 @@ export async function POST(req: Request) {
     // Handle free plan
     if (plan === 'free') {
       // Just upgrade user to free plan without payment
-      await (prisma as any).profile.update({
-        where: { userId: user.id },
+      await (prisma as any).user.update({
+        where: { id: user.id },
         data: {
           credits: PRICING_PLANS.free.credits
         }
@@ -367,8 +367,8 @@ export async function GET(req: Request) {
       }, { status: 401 });
     }
 
-    const userRecord = await (prisma as any).profile.findUnique({
-      where: { userId: user.id },
+    const userRecord = await (prisma as any).user.findUnique({
+      where: { id: user.id },
       select: {
         credits: true,
         createdAt: true

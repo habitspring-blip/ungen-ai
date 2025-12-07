@@ -17,25 +17,28 @@ export async function GET(request: Request) {
 
     const userId = user.id;
 
-    const recentRewrites = await prisma.rewrite.findMany({
+    const recentSummaries = await (prisma as any).summary.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: {
         id: true,
-        title: true,
-        wordCount: true,
-        modelType: true,
+        summaryText: true,
+        metrics: true,
+        modelVersion: true,
         createdAt: true,
       },
     });
 
-    const activity = recentRewrites.map(r => ({
-      title: r.title || 'Untitled rewrite',
-      time: formatDistanceToNow(new Date(r.createdAt), { addSuffix: true }),
-      words: r.wordCount,
-      model: formatModelName(r.modelType),
-    }));
+    const activity = recentSummaries.map(s => {
+      const metrics = s.metrics as any;
+      return {
+        title: `Summary generated`,
+        time: formatDistanceToNow(new Date(s.createdAt!), { addSuffix: true }),
+        words: metrics?.wordCount || 0,
+        model: formatModelName(s.modelVersion || 'unknown'),
+      };
+    });
 
     return NextResponse.json(activity);
   } catch (error) {
