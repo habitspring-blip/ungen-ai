@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      feedback: feedback.map(f => ({
+      feedback: feedback.map((f: any) => ({
         id: f.id,
         rating: f.rating,
         feedback_type: f.feedbackType,
