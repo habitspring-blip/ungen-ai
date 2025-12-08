@@ -13,6 +13,9 @@ model User {
   id        String   @id @db.Uuid
   email     String?  @db.VarChar(255)
   credits   Int?     @default(1000)
+  plan      String   @default("free") // free, pro, team, enterprise
+  storageUsed Int    @default(0) @map("storage_used") // in bytes
+  storageLimit Int   @default(524288000) @map("storage_limit") // 500MB default
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -20,6 +23,15 @@ model User {
   summaries Summary[]
   feedback  Feedback[]
   usageLogs UsageLog[]
+
+  // Citation system relations
+  libraries     Library[]
+  references    Reference[]
+  annotations   Annotation[]
+  citations     Citation[]
+  libraryMembers LibraryMember[]
+  activities    Activity[]
+  searchQueries SearchQuery[]
 
   @@schema("public")
   @@map("users")
@@ -97,4 +109,184 @@ model UsageLog {
   @@schema("public")
   @@index([userId], map: "idx_usage_logs_user_id")
   @@map("usage_logs")
+}
+
+// Citation Management System Models
+
+model Library {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  isShared    Boolean  @default(false) @map("is_shared")
+  isPublic    Boolean  @default(false) @map("is_public")
+  settings    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  references  Reference[]
+  members     LibraryMember[]
+  activities  Activity[]
+
+  @@schema("public")
+  @@index([userId], map: "idx_libraries_user_id")
+  @@map("libraries")
+}
+
+model Reference {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  libraryId     String   @map("library_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  citationKey   String   @map("citation_key") @unique
+  type          String   @default("article") // article, book, thesis, website, etc.
+  title         String
+  authors       Json     // Array of author objects
+  year          Int?
+  journal       String?
+  volume        String?
+  issue         String?
+  pages         String?
+  publisher     String?
+  doi           String?
+  isbn          String?
+  url           String?
+  abstract      String?
+  keywords      String[] @default([])
+  tags          String[] @default([])
+  pdfUrl        String?  @map("pdf_url")
+  pdfFileSize   Int?     @map("pdf_file_size")
+  fullTextContent String? @map("full_text_content") // For full-text search
+  notes         String?
+  metadata      Json?    // Additional metadata
+  citationCount Int      @default(0) @map("citation_count")
+  createdBy     String   @map("created_by") @db.Uuid
+  updatedBy     String   @map("updated_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  library       Library       @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  annotations   Annotation[]
+  citations     Citation[]
+  activities    Activity[]
+
+  @@schema("public")
+  @@index([libraryId], map: "idx_references_library_id")
+  @@index([userId], map: "idx_references_user_id")
+  @@index([citationKey], map: "idx_references_citation_key")
+  @@index([doi], map: "idx_references_doi")
+  @@map("references")
+}
+
+model Annotation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceId String   @map("reference_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  pageNumber  Int      @map("page_number")
+  type        String   // highlight, note, underline, strikethrough
+  content     String?
+  position    Json     // Position data for PDF viewer
+  color       String   @default("#ffff00")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  reference   Reference @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+  @@index([referenceId], map: "idx_annotations_reference_id")
+  @@index([userId], map: "idx_annotations_user_id")
+  @@map("annotations")
+}
+
+model Citation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceId String   @map("reference_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  style       String   @default("apa") // apa, mla, chicago, harvard, etc.
+  format      String   @default("full") // full, in-text, short
+  text        String   // The formatted citation text
+  position    Int?     // Position in document (for in-text citations)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  reference   Reference @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+  @@index([referenceId], map: "idx_citations_reference_id")
+  @@index([userId], map: "idx_citations_user_id")
+  @@map("citations")
+}
+
+model LibraryMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  libraryId String   @map("library_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      String   @default("viewer") // owner, admin, editor, viewer
+  invitedBy String   @map("invited_by") @db.Uuid
+  invitedAt DateTime @default(now()) @map("invited_at") @db.Timestamptz(6)
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(6)
+
+  library   Library @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+  @@unique([libraryId, userId], map: "unique_library_member")
+  @@index([libraryId], map: "idx_library_members_library_id")
+  @@index([userId], map: "idx_library_members_user_id")
+  @@map("library_members")
+}
+
+model Activity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  libraryId   String?  @map("library_id") @db.Uuid
+  referenceId String?  @map("reference_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  action      String   // add, edit, delete, share, comment, etc.
+  details     Json?    // Additional details about the action
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  library     Library?   @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  reference   Reference? @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+  @@index([libraryId], map: "idx_activities_library_id")
+  @@index([referenceId], map: "idx_activities_reference_id")
+  @@index([userId], map: "idx_activities_user_id")
+  @@map("activities")
+}
+
+model CitationStyle {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  title       String
+  description String?
+  template    Json     // CSL template or custom formatting rules
+  isDefault   Boolean  @default(false) @map("is_default")
+  isPublic    Boolean  @default(true) @map("is_public")
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@schema("public")
+  @@index([name], map: "idx_citation_styles_name")
+  @@map("citation_styles")
+}
+
+model SearchQuery {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  query       String
+  sources     String[] // Array of search sources used
+  results     Json?    // Cached search results
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+  @@index([userId], map: "idx_search_queries_user_id")
+  @@map("search_queries")
 }
