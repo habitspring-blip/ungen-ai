@@ -27,10 +27,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
+    // Validate file size (50MB limit for larger documents)
+    if (file.size > 50 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, error: 'File size exceeds 10MB limit' },
+        { success: false, error: 'File size exceeds 50MB limit' },
         { status: 400 }
       );
     }

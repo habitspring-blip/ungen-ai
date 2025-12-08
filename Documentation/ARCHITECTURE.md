@@ -109,20 +109,11 @@
 ```
 USER_SUBMITS_TEXT(text, preferences):
 
-  STEP 1: Input Handling (0-500ms)
-    → POST /api/documents/upload
-    → Validate and store in Supabase
-    → Generate document_id
-    → Set status = "preprocessing"
-    → Publish to realtime channel: {event: "document_created", document_id}
-
-  STEP 2: Preprocessing (500-2000ms)
-    → Supabase Edge Function triggered
-    → Tokenize, segment, extract entities
-    → Generate sentence embeddings
-    → Store preprocessed data
-    → Set status = "ready"
-    → Publish: {event: "preprocessing_complete", document_id}
+  STEP 1: Input Validation (0-100ms)
+    → POST /api/summarize
+    → Validate text length and format
+    → Apply grammar corrections
+    → Prepare for summarization
 
   STEP 3: Cache Check (50ms)
     → Query cache: SELECT FROM summaries
@@ -360,13 +351,12 @@ RETRAINING_PIPELINE:
 
 ### 6.1 Latency Targets
 
-- Document Upload: < 500ms (p95)
-- Preprocessing: < 2000ms (p95)
+- Input Validation: < 100ms (p95)
 - Extractive Summarization: < 1000ms (p95)
 - Abstractive Summarization: < 5000ms (p95)
 - Post-processing: < 500ms (p95)
 - Cache Hit Response: < 100ms (p95)
-- End-to-End (no cache): < 8000ms (p95)
+- End-to-End (no cache): < 6000ms (p95)
 
 ## Related Documentation
 

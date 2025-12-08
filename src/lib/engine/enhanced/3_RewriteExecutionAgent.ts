@@ -240,8 +240,9 @@ async function processAsyncBilling(
         throw new Error('User not found for billing');
       }
 
-      if (user.credits < creditsToDeduct) {
-        throw new Error(`Insufficient credits: ${user.credits} available, ${creditsToDeduct} required`);
+      const currentCredits = user.credits ?? 0;
+      if (currentCredits < creditsToDeduct) {
+        throw new Error(`Insufficient credits: ${currentCredits} available, ${creditsToDeduct} required`);
       }
 
       // 2. Deduct credits
@@ -254,17 +255,17 @@ async function processAsyncBilling(
         }
       });
 
-      // 3. Log the rewrite operation
-      await tx.rewrite.create({
-        data: {
-          userId: userId,
-          title: generateTitle(request),
-          modelType: modelType,
-          inputText: request.text,
-          outputText: outputText,
-          wordCount: wordCount
-        }
-      });
+      // 3. Log the rewrite operation (table not yet implemented)
+      // await tx.rewrite.create({
+      //   data: {
+      //     userId: userId,
+      //     title: generateTitle(request),
+      //     modelType: modelType,
+      //     inputText: request.text,
+      //     outputText: outputText,
+      //     wordCount: wordCount
+      //   }
+      // });
     });
 
     console.log(`✅ Rewrite completed: ${wordCount} words, ${creditsToDeduct} credits deducted from user ${userId}`);

@@ -1,53 +1,46 @@
 # Service Decomposition Details
 
-## Input Handler Service
+## Input Validation Service
 
-**Location:** Next.js API Route `/api/input/process`
+**Location:** Next.js API Route `/api/summarize`
 
 ### Responsibilities
 
-- Accept multiple input formats (text, PDF, DOCX, HTML)
-- Parse and extract text content
-- Validate input length and format
-- Queue for preprocessing
+- Accept direct text input
+- Validate text length and format
+- Apply basic grammar corrections
+- Prepare text for summarization
 
 ### Algorithm Flow
 
 ```
-INPUT_HANDLER(file, metadata):
-  1. Validate file type ∈ {txt, pdf, docx, html}
-  2. IF file_size > MAX_SIZE:
-       RETURN error("File too large")
+INPUT_VALIDATOR(text, config):
+  1. Validate text length > 0 and < MAX_TEXT_LENGTH
+  2. IF text.trim().length == 0:
+       RETURN error("Text input is required")
 
-  3. SWITCH file_type:
-       CASE 'pdf':
-         text = extractPDFText(file)
-       CASE 'docx':
-         text = extractDOCXText(file)
-       CASE 'html':
-         text = stripHTMLTags(file)
-       DEFAULT:
-         text = readPlainText(file)
+  3. // Apply grammar corrections
+     corrected_text = applyGrammarCorrections(text)
 
-  4. metadata = {
+  4. // Basic text preprocessing
+     cleaned_text = normalizeWhitespace(corrected_text)
+     cleaned_text = removeExcessiveNewlines(cleaned_text)
+
+  5. metadata = {
        original_length: text.length,
-       word_count: countWords(text),
-       language: detectLanguage(text),
-       upload_time: NOW(),
+       word_count: countWords(cleaned_text),
+       language: detectLanguage(cleaned_text),
+       processed_at: NOW(),
        user_id: getCurrentUser()
      }
 
-  5. document_id = generateUUID()
-  6. STORE in Supabase.documents(document_id, text, metadata)
-  7. ENQUEUE(preprocessing_queue, document_id)
-  8. RETURN {document_id, status: "queued"}
+  6. RETURN {text: cleaned_text, metadata, config}
 ```
 
 ### Key Parameters
 
-- `MAX_FILE_SIZE`: 10MB
-- `SUPPORTED_FORMATS`: ['.txt', '.pdf', '.docx', '.html']
-- `MAX_TEXT_LENGTH`: 50,000 words
+- `MAX_TEXT_LENGTH`: 200,000 characters
+- `MIN_TEXT_LENGTH`: 10 characters
 
 ---
 

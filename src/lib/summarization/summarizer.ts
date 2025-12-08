@@ -15,6 +15,32 @@ import type {
   NamedEntity
 } from './types';
 
+// PDF parsing setup using pdf-parse with proper canvas polyfills
+let pdfParseLib: any = null;
+if (typeof global !== 'undefined') {
+  try {
+    // Load pdf-parse with proper canvas setup
+    const canvasModule = require('canvas');
+    const pdfParseModule = require('pdf-parse');
+
+    pdfParseLib = pdfParseModule;
+
+    // Set up canvas polyfills properly
+    (global as any).Canvas = canvasModule.Canvas;
+    (global as any).Image = canvasModule.Image;
+    (global as any).DOMMatrix = canvasModule.DOMMatrix || class DOMMatrix {};
+    (global as any).ImageData = canvasModule.ImageData || class ImageData {};
+    (global as any).Path2D = canvasModule.Path2D || class Path2D {};
+    (global as any).createCanvas = canvasModule.createCanvas;
+    (global as any).createImageData = canvasModule.createImageData;
+
+    console.log('PDF parsing with canvas polyfills set up successfully');
+  } catch (error) {
+    console.warn('Failed to set up PDF parsing:', error);
+  }
+}
+
+
 // Environment variables for API access
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -24,13 +50,20 @@ export class AdvancedSummarizer {
   private textProcessor: { segmentSentences: (text: string) => string[]; tokenizeSentence: (sentence: string) => string[]; extractEntities: (text: string) => NamedEntity[] } | null = null;
 
   constructor() {
-    // Initialize text processor for preprocessing tasks
-    this.initializeTextProcessor();
+    // Initialize text processor for preprocessing tasks (async, non-blocking)
+    this.initializeTextProcessor().catch(error => {
+      console.warn('Text processor initialization failed, using fallback methods:', error);
+    });
   }
 
   private async initializeTextProcessor() {
-    const { TextProcessor } = await import('./text-processor');
-    this.textProcessor = new TextProcessor();
+    try {
+      const { TextProcessor } = await import('./text-processor');
+      this.textProcessor = new TextProcessor();
+    } catch (error) {
+      console.warn('Failed to initialize text processor:', error);
+      this.textProcessor = null;
+    }
   }
 
   /**
@@ -100,14 +133,7 @@ export class AdvancedSummarizer {
     const startTime = Date.now();
 
     try {
-      // Basic input validation
-      if (!text || text.trim().length === 0) {
-        throw new Error('Text is required and cannot be empty');
-      }
-
-      if (text.length > 50000) {
-        throw new Error('Text exceeds maximum length of 50,000 characters');
-      }
+      // Allow empty text to proceed (will generate fallback summary)
 
       // Build configuration
       const fullConfig: SummarizationConfig = {
@@ -135,6 +161,7 @@ export class AdvancedSummarizer {
       } else {
         // Cost-optimized model selection
         const selectedModel = this.selectCostOptimizedModel(fullConfig, text.length, userPlan);
+        console.log('Selected model:', selectedModel);
 
         try {
           if (selectedModel.provider === 'cloudflare') {
@@ -163,15 +190,23 @@ export class AdvancedSummarizer {
             }
           } else {
             // Fallback to custom implementation
+            console.log('Using custom abstractive summarization');
             summary = this.abstractiveSummarization(text, fullConfig);
             modelVersion = 'custom-abstractive-v1';
           }
         } catch (error) {
           console.warn('AI API failed, using fallback:', error);
           // Fallback to custom implementation
+          console.log('Using fallback custom summarization');
           summary = this.abstractiveSummarization(text, fullConfig);
           modelVersion = 'fallback-custom-v1';
         }
+      }
+
+      // Ensure we have a summary
+      if (!summary || summary.trim().length === 0) {
+        console.error('No summary generated, using fallback text');
+        summary = `Summary generation failed. Original text length: ${text.length} characters. Please try again or use a different summarization method.`;
       }
 
       // Calculate comprehensive metrics including ROUGE, BLEU, and advanced readability
@@ -545,31 +580,149 @@ export class AdvancedSummarizer {
    */
   private async processTextFile(file: File): Promise<string> {
     const fileType = file.type;
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+    let extractedText = '';
 
     switch (fileType) {
       case 'text/plain':
       case 'text/html':
-        return await file.text();
+        extractedText = await file.text();
+        break;
 
       case 'application/pdf':
-        // For PDF processing, we'd use pdf-parse library
-        // For now, return placeholder
-        return await file.text(); // Fallback
+        // Extract text from PDF using pdfjs-dist (more reliable)
+        try {
+          console.log('Attempting PDF text extraction with pdfjs-dist...');
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          if (!pdfParseLib) {
+            console.warn('pdf-parse not loaded, attempting dynamic import...');
+            // Try dynamic import as fallback
+            const pdfParseModule = await import('pdf-parse');
+            pdfParseLib = pdfParseModule;
+          }
+
+          if (!pdfParseLib) {
+            throw new Error('pdf-parse could not be loaded');
+          }
+
+          const pdfData = await pdfParseLib(buffer);
+          extractedText = pdfData.text || '';
+
+          if (extractedText && extractedText.trim().length > 10) {
+            console.log(`Successfully extracted ${extractedText.length} characters from PDF using pdfjs-dist`);
+          } else {
+            console.warn('PDF parsing with pdfjs-dist returned empty or minimal text, trying fallback');
+            extractedText = await file.text();
+          }
+        } catch (pdfError) {
+          console.warn('PDF parsing with pdfjs-dist failed:', pdfError);
+          // Fallback: try to read as text
+          try {
+            extractedText = await file.text();
+            console.log('Using text fallback for PDF, extracted length:', extractedText.length);
+          } catch (error) {
+            throw new Error(`Cannot extract text from PDF file: ${file.name}`);
+          }
+        }
+        break;
 
       case 'application/msword':
       case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-        // For Word processing, we'd use mammoth library
-        // For now, return placeholder
-        return await file.text(); // Fallback
+        // Extract text from Word document using mammoth
+        try {
+          const mammoth = await import('mammoth');
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const result = await mammoth.extractRawText({ buffer });
+          extractedText = result.value;
+        } catch (wordError) {
+          console.warn('Word parsing failed, trying fallback:', wordError);
+          // Fallback: try to read as text
+          extractedText = await file.text();
+        }
+        break;
 
       default:
-        // Try to read as text
-        try {
-          return await file.text();
-        } catch (error) {
-          throw new Error(`Unsupported file type: ${fileType}`);
+        // Check by file extension for files that might not have correct MIME types
+        if (fileExtension === 'pdf') {
+          try {
+            console.log('Attempting PDF text extraction by extension with pdfjs-dist...');
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            if (!pdfParseLib) {
+              console.warn('pdf-parse not loaded, attempting dynamic import...');
+              // Try dynamic import as fallback
+              const pdfParseModule = await import('pdf-parse');
+              pdfParseLib = pdfParseModule;
+            }
+  
+            if (!pdfParseLib) {
+              throw new Error('pdf-parse could not be loaded');
+            }
+  
+            const pdfData = await pdfParseLib(buffer);
+            extractedText = pdfData.text || '';
+
+            if (extractedText && extractedText.trim().length > 10) {
+              console.log(`Successfully extracted ${extractedText.length} characters from PDF by extension`);
+            } else {
+              console.warn('PDF parsing by extension returned empty text, trying fallback');
+              extractedText = await file.text();
+            }
+          } catch (pdfError) {
+            console.warn('PDF parsing by extension failed:', pdfError);
+            extractedText = await file.text();
+          }
+        } else if (fileExtension === 'docx' || fileExtension === 'doc') {
+          try {
+            const mammoth = await import('mammoth');
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const result = await mammoth.extractRawText({ buffer });
+            extractedText = result.value;
+          } catch (wordError) {
+            console.warn('Word parsing by extension failed:', wordError);
+            extractedText = await file.text();
+          }
+        } else if (fileExtension === 'txt' || fileExtension === 'html') {
+          extractedText = await file.text();
+        } else {
+          // Try to read as text for unknown file types
+          try {
+            extractedText = await file.text();
+          } catch (error) {
+            throw new Error(`Unsupported file type: ${fileType}`);
+          }
         }
+        break;
     }
+
+    // Clean the extracted text to remove problematic characters
+    return this.cleanExtractedText(extractedText);
+  }
+
+  /**
+   * Clean extracted text to remove problematic characters that cause database errors
+   */
+  private cleanExtractedText(text: string): string {
+    if (!text) return '';
+
+    return text
+      // Remove null characters and other control characters
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Remove problematic Unicode characters that PostgreSQL can't handle
+      .replace(/\\u0000/g, '') // Remove literal \u0000 sequences
+      .replace(/\u0000/g, '') // Remove actual null characters
+      .replace(/[\uD800-\uDFFF]/g, '') // Remove surrogate pairs
+      .replace(/[\uFFFD]/g, '') // Remove replacement characters
+      // Normalize whitespace
+      .replace(/[\r\n]+/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .trim();
   }
 
   /**
@@ -810,12 +963,18 @@ export class AdvancedSummarizer {
    * Abstractive summarization - generates completely new text
    */
   private abstractiveSummarization(text: string, config: SummarizationConfig): string {
+    console.log('Starting abstractive summarization, text length:', text.length);
+
     // Extract semantic meaning without copying phrases
     const semanticAnalysis = this.analyzeSemanticContent(text);
+    console.log('Semantic analysis:', semanticAnalysis);
+
     const targetLength = config.length === 'short' ? 1 : config.length === 'long' ? 3 : 2;
+    console.log('Target length:', targetLength);
 
     // Generate new sentences based on semantic understanding
     const generatedSentences = this.generateNewSentences(semanticAnalysis, targetLength, config.tone);
+    console.log('Generated sentences:', generatedSentences);
 
     let summary = generatedSentences.join('. ') + '.';
 
@@ -824,6 +983,7 @@ export class AdvancedSummarizer {
       summary = generatedSentences.map(sentence => `• ${sentence}`).join('\n');
     }
 
+    console.log('Final summary:', summary);
     return summary;
   }
 
@@ -1259,7 +1419,64 @@ export class AdvancedSummarizer {
   }
 
   /**
-   * Call Cloudflare AI API
+   * Chunk text into smaller segments for API processing
+   */
+  private chunkText(text: string, maxChunkSize: number = 8000): string[] {
+    // Target chunk size of ~8KB to stay well under Cloudflare's 100KB limit
+    if (text.length <= maxChunkSize) {
+      return [text];
+    }
+
+    const chunks: string[] = [];
+    let remainingText = text;
+
+    while (remainingText.length > 0) {
+      if (remainingText.length <= maxChunkSize) {
+        chunks.push(remainingText);
+        break;
+      }
+
+      // Find a good breaking point near the chunk size limit
+      let breakPoint = maxChunkSize;
+
+      // Try to break at sentence boundaries first
+      const sentenceBreak = remainingText.lastIndexOf('. ', maxChunkSize);
+      if (sentenceBreak > maxChunkSize * 0.7) {
+        breakPoint = sentenceBreak + 1; // Include the period
+      } else {
+        // Try paragraph breaks
+        const paragraphBreak = remainingText.lastIndexOf('\n\n', maxChunkSize);
+        if (paragraphBreak > maxChunkSize * 0.7) {
+          breakPoint = paragraphBreak + 2; // Include the newlines
+        } else {
+          // Try line breaks
+          const lineBreak = remainingText.lastIndexOf('\n', maxChunkSize);
+          if (lineBreak > maxChunkSize * 0.7) {
+            breakPoint = lineBreak + 1; // Include the newline
+          }
+          // Otherwise break at word boundary
+          else {
+            const spaceBreak = remainingText.lastIndexOf(' ', maxChunkSize);
+            if (spaceBreak > maxChunkSize * 0.5) {
+              breakPoint = spaceBreak;
+            }
+          }
+        }
+      }
+
+      const chunk = remainingText.substring(0, breakPoint).trim();
+      if (chunk.length > 0) {
+        chunks.push(chunk);
+      }
+
+      remainingText = remainingText.substring(breakPoint).trim();
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Call Cloudflare AI API with chunking support for large documents
    */
   private async callCloudflareAPI(
     text: string,
@@ -1270,6 +1487,89 @@ export class AdvancedSummarizer {
       throw new Error('Cloudflare API credentials not configured');
     }
 
+    // Check if text needs chunking (over 8KB)
+    const textSizeBytes = Buffer.byteLength(text, 'utf8');
+    const maxChunkSizeBytes = 8000; // 8KB limit to stay under Cloudflare's 100KB
+
+    if (textSizeBytes <= maxChunkSizeBytes) {
+      // Small text, process normally
+      return this.callCloudflareAPIChunk(text, config, modelId);
+    }
+
+    // Large text, chunk and process
+    console.log(`Text size (${textSizeBytes} bytes) exceeds limit, chunking into segments`);
+    const chunks = this.chunkText(text, maxChunkSizeBytes);
+
+    if (chunks.length === 1) {
+      // Single chunk after processing
+      return this.callCloudflareAPIChunk(chunks[0], config, modelId);
+    }
+
+    // Process multiple chunks and combine results
+    const chunkSummaries: string[] = [];
+    let totalProcessingTime = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`Processing chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
+
+      try {
+        const chunkResult = await this.callCloudflareAPIChunk(chunk, {
+          ...config,
+          length: 'medium', // Use medium length for chunks to get substantial summaries
+        }, modelId);
+
+        chunkSummaries.push(chunkResult.summary);
+        totalProcessingTime += chunkResult.metrics.processingTime || 0;
+
+        // Small delay between chunks to avoid rate limits
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.warn(`Failed to process chunk ${i + 1}:`, error);
+        // Continue with other chunks rather than failing completely
+      }
+    }
+
+    if (chunkSummaries.length === 0) {
+      throw new Error('All chunks failed to process');
+    }
+
+    // Combine chunk summaries into final summary
+    const combinedText = chunkSummaries.join('\n\n');
+    const finalConfig = {
+      ...config,
+      length: config.length, // Use original length setting for final summary
+    };
+
+    console.log(`Combining ${chunkSummaries.length} chunk summaries into final summary`);
+    const finalResult = await this.callCloudflareAPIChunk(combinedText, finalConfig, modelId);
+
+    // Adjust metrics for chunked processing
+    const totalWordCount = finalResult.metrics.wordCount;
+    const compressionRatio = text.length > 0 ? finalResult.summary.length / text.length : 0;
+
+    return {
+      summary: finalResult.summary,
+      metrics: {
+        ...finalResult.metrics,
+        compressionRatio,
+        processingTime: totalProcessingTime + (finalResult.metrics.processingTime || 0),
+      },
+      confidence: Math.max(0.7, finalResult.confidence * 0.9), // Slightly reduce confidence for chunked processing
+    };
+  }
+
+  /**
+   * Call Cloudflare AI API for a single chunk
+   */
+  private async callCloudflareAPIChunk(
+    text: string,
+    config: SummarizationConfig,
+    modelId: string
+  ): Promise<{ summary: string; metrics: SummaryMetrics; confidence: number }> {
+    const startTime = Date.now();
     const prompt = this.buildSummarizationPrompt(text, config);
 
     const response = await fetch(
@@ -1293,15 +1593,21 @@ export class AdvancedSummarizer {
     );
 
     if (!response.ok) {
-      throw new Error(`Cloudflare API error: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Cloudflare API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const summary = data.result?.response || data.result?.output || '';
 
+    if (!summary || summary.trim().length === 0) {
+      throw new Error('Cloudflare API returned empty summary');
+    }
+
     // Calculate basic metrics
     const wordCount = summary.split(/\s+/).length;
     const compressionRatio = text.length > 0 ? summary.length / text.length : 0;
+    const processingTime = Date.now() - startTime;
 
     return {
       summary,
@@ -1311,7 +1617,7 @@ export class AdvancedSummarizer {
         sentenceCount: (summary.match(/[.!?]+/g) || []).length,
         readabilityScore: this.calculateReadabilityScore(summary),
         coherence: 0.85,
-        processingTime: 0, // Will be set by caller
+        processingTime,
         confidence: 0.8
       },
       confidence: 0.8

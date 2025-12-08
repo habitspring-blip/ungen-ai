@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PremiumCard from '@/components/ui/PremiumCard';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,6 @@ interface SummaryResult {
   summary: string;
   wordCount: number;
   compressionRatio: number;
-  keyPoints: string[];
   method: string;
   config: {
     mode: string;
@@ -34,8 +33,6 @@ interface SummaryResult {
 
 export default function SummarizeAIPage() {
   const [text, setText] = useState('');
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadedDocumentId, setUploadedDocumentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SummaryResult | null>(null);
   const [history, setHistory] = useState<Array<{
@@ -46,8 +43,6 @@ export default function SummarizeAIPage() {
   }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'summarize' | 'history'>('summarize');
-  const [showKeyPoints, setShowKeyPoints] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   // Summarization parameters
   const [tone, setTone] = useState<'formal' | 'casual' | 'academic' | 'simple' | 'neutral' | 'angry' | 'sad' | 'inspirational' | 'sarcastic' | 'witty' | 'enthusiastic' | 'serious' | 'humorous' | 'optimistic' | 'pessimistic' | 'passionate' | 'diplomatic' | 'assertive' | 'empathetic' | 'critical' | 'encouraging'>('neutral');
@@ -55,6 +50,8 @@ export default function SummarizeAIPage() {
   const [length, setLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [mode, setMode] = useState<'extractive' | 'abstractive' | 'hybrid'>('abstractive');
   const [format, setFormat] = useState<'paragraphs' | 'bullets'>('paragraphs');
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { user } = useUser();
   const router = useRouter();
@@ -65,93 +62,31 @@ export default function SummarizeAIPage() {
     }
   }, [user, router]);
 
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [text]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && (text.trim() || uploadedFile) && !loading) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && text.trim() && !loading) {
         e.preventDefault();
         handleSummarize();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !e.shiftKey) {
         e.preventDefault();
         setText('');
-        setUploadedFile(null);
-        setUploadedDocumentId(null);
-        setUploadProgress(0);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [text, uploadedFile, loading]);
+  }, [text, loading]);
 
-  const handleFileUpload = async (file: File) => {
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File size exceeds 10MB limit');
-      return;
-    }
-
-    const allowedTypes = [
-      'text/plain',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/html',
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/bmp',
-      'image/tiff'
-    ];
-
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(txt|pdf|doc|docx|html|jpg|jpeg|png|gif|webp|bmp|tiff)$/i)) {
-      setError('Unsupported file type. Supported: PDF, Word, Text, HTML, and images (JPG, PNG, GIF, WebP, BMP, TIFF)');
-      return;
-    }
-
-    setUploadedFile(file);
-    setUploadProgress(25);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/documents', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      setUploadProgress(75);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Upload failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setUploadProgress(100);
-
-      // Store the document ID for later use
-      setUploadedDocumentId(data.document_id);
-
-      // File uploaded and processed successfully
-      // The extracted text is now stored in the database
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'File upload failed';
-      setError(errorMessage);
-      setUploadedFile(null);
-      setUploadProgress(0);
-    }
-  };
 
   const handleSummarize = async () => {
-    if (!uploadedFile && !text.trim()) {
-      setError('Please upload a file or enter text to summarize');
+    if (!text.trim()) {
+      setError('Please enter text to summarize');
       return;
     }
 
@@ -160,38 +95,7 @@ export default function SummarizeAIPage() {
     setResult(null);
 
     try {
-      let textToSummarize = text.trim();
-      let documentId: string | undefined;
-
-      // If we have an uploaded file, fetch its processed content
-      if (uploadedFile && uploadedDocumentId) {
-        try {
-          // Fetch the document content using the stored document ID
-          const docResponse = await fetch(`/api/documents/${uploadedDocumentId}`, {
-            credentials: 'include'
-          });
-          const docData = await docResponse.json();
-
-          if (docData.success) {
-            const fileContent = docData.document.original_text;
-
-            // Combine file content with additional context
-            if (textToSummarize) {
-              // If user provided additional context, append it
-              textToSummarize = `${fileContent}\n\nAdditional Context: ${textToSummarize}`;
-            } else {
-              // Use only file content
-              textToSummarize = fileContent;
-            }
-          } else {
-            throw new Error('Failed to fetch document content');
-          }
-        } catch (docError) {
-          console.warn('Could not fetch document content:', docError);
-          // Fallback: use placeholder
-          textToSummarize = textToSummarize || `[File: ${uploadedFile.name}]`;
-        }
-      }
+      const textToSummarize = text.trim();
 
       if (!textToSummarize) {
         throw new Error('No content available for summarization');
@@ -237,7 +141,6 @@ export default function SummarizeAIPage() {
         summary: data.data.summary,
         wordCount: data.data.metrics?.wordCount || 0,
         compressionRatio: Math.round((data.data.metrics?.compressionRatio || 0) * 100),
-        keyPoints: extractKeyPoints(data.data.summary),
         method: data.data.method || 'abstractive',
         config: data.data.config || { mode, quality, tone, length },
         metrics: data.data.metrics || {
@@ -272,9 +175,6 @@ export default function SummarizeAIPage() {
     }
   };
 
-  const extractKeyPoints = (summary: string): string[] => {
-    return summary.split(/[.!?]+/).filter(point => point.trim().length > 10).slice(0, 5);
-  };
 
   const countWords = (text: string): number => {
     if (!text || text.trim().length === 0) return 0;
@@ -282,6 +182,14 @@ export default function SummarizeAIPage() {
     const words = cleanedText.split(' ').filter(word => word.length > 0);
     return words.length;
   };
+
+  const autoResizeTextarea = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  };
+
 
   // Grammar correction function
   const applyGrammarCorrections = (text: string): string => {
@@ -334,7 +242,7 @@ export default function SummarizeAIPage() {
 
   const currentCharCount = text.length;
   const currentWordCount = countWords(text);
-  const maxChars = 5000;
+  const maxChars = 200000;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -494,107 +402,34 @@ export default function SummarizeAIPage() {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8 justify-center">
-            <div className="w-full lg:w-[480px] flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+            <div className="flex flex-col h-full">
               <PremiumCard
-                title={uploadedFile ? "Additional Context (Optional)" : "Input Text"}
-                subtitle={uploadedFile ? "Add instructions or context for the uploaded file" : "Paste or type the content you want to summarize, or upload a file above"}
+                title="Input Text"
+                subtitle="Paste or type the content you want to summarize"
                 gradient="from-white to-slate-50"
-                className="flex-1 flex flex-col"
+                className="flex-1 flex flex-col h-full"
               >
-                <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 flex flex-col min-h-0 h-full">
                   <div className="flex-1 flex flex-col min-h-0">
-                    {/* File Upload Section */}
-                    <div className="mb-4">
-                      <div className="flex items-center gap-3 p-4 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
-                        <div className="flex-1">
-                          <input
-                            type="file"
-                            accept=".txt,.pdf,.doc,.docx,.html,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                handleFileUpload(file);
-                              }
-                            }}
-                            className="hidden"
-                            id="file-upload"
-                          />
-                          <label
-                            htmlFor="file-upload"
-                            className="flex items-center gap-3 cursor-pointer"
-                          >
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                              <span className="text-white text-lg">📎</span>
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-slate-700">
-                                {uploadedFile ? 'File uploaded successfully' : 'Click to upload a file (optional)'}
-                              </div>
-                              {uploadedFile && (
-                                <div className="text-xs font-medium text-blue-600 mt-1">
-                                  📄 {uploadedFile.name}
-                                </div>
-                              )}
-                              <div className="text-xs text-slate-500">
-                                {uploadedFile
-                                  ? `${(uploadedFile.size / 1024 / 1024).toFixed(2)} MB • ${uploadedFile.type || 'Unknown type'}`
-                                  : 'PDF, Word, Text, HTML, or Images (JPG, PNG, etc.)'
-                                }
-                              </div>
-                            </div>
-                          </label>
-                        </div>
-                        {uploadedFile && (
-                          <button
-                            onClick={() => {
-                              setUploadedFile(null);
-                              setUploadedDocumentId(null);
-                              setUploadProgress(0);
-                            }}
-                            className="text-slate-400 hover:text-slate-600 p-1"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
- 
-                      {/* Upload Progress */}
-                      {uploadProgress > 0 && uploadProgress < 100 && (
-                        <div className="mt-2">
-                          <div className="w-full bg-slate-200 rounded-full h-2">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${uploadProgress}%` }}
-                            ></div>
-                          </div>
-                          <div className="text-xs text-slate-600 mt-1">Processing file...</div>
-                        </div>
-                      )}
-                    </div>
- 
+
                     <div className="relative flex-1 min-h-[200px]">
                       <textarea
+                        ref={textareaRef}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
-                        placeholder={uploadedFile ? "Optional: Add additional context or instructions here..." : "Enter or paste your text here, or upload a file above..."}
-                        className="w-full h-full min-h-[200px] max-h-[600px] p-4 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none bg-white/50 overflow-y-auto"
+                        placeholder="Enter or paste your text here..."
+                        className="w-full min-h-[200px] p-4 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none bg-white/50 overflow-y-auto"
                       />
                       <div className="absolute bottom-3 right-3 flex items-center gap-2">
                         <div className={`text-xs bg-white/80 px-2 py-1 rounded-md ${
                           currentCharCount > maxChars ? 'text-red-600' : 'text-emerald-600'
                         }`}>
-                          {uploadedFile && <span className="mr-2">📄 {uploadedFile.name}</span>}
                           {currentWordCount} words • {currentCharCount}/{maxChars} chars
                         </div>
-                        {(text || uploadedFile) && (
+                        {text && (
                           <button
-                            onClick={() => {
-                              setText('');
-                              setUploadedFile(null);
-                              setUploadedDocumentId(null);
-                              setUploadProgress(0);
-                            }}
+                            onClick={() => setText('')}
                             className="text-xs text-slate-400 hover:text-slate-600 bg-white/80 p-1 rounded-md"
                           >
                             ✕
@@ -613,9 +448,9 @@ export default function SummarizeAIPage() {
                   <div className="flex justify-center mt-6 pt-4 border-t border-slate-100">
                     <button
                       onClick={handleSummarize}
-                      disabled={loading || (!text.trim() && !uploadedFile)}
+                      disabled={loading || !text.trim()}
                       className={`px-8 py-4 rounded-2xl font-semibold text-white text-lg transition-all ${
-                        (!text.trim() && !uploadedFile) || loading
+                        !text.trim() || loading
                           ? 'bg-slate-400 cursor-not-allowed'
                           : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg'
                       }`}
@@ -627,125 +462,114 @@ export default function SummarizeAIPage() {
               </PremiumCard>
             </div>
 
-            <div className="w-full lg:w-[480px] flex flex-col">
+            <div className="flex flex-col h-full">
               {result ? (
                 <PremiumCard
                   title="AI Summary"
                   subtitle={`Generated with ${result.config.quality} quality • ${result.method} method`}
                   gradient="from-emerald-50 to-teal-50"
-                  className="flex-1"
+                  className="flex-1 h-full"
                 >
                   <div className="space-y-4">
-                    {/* Quality Metrics - Above Output */}
+                    {/* Quality Metrics */}
                     <div className="bg-white/60 border border-white/40 rounded-xl p-4">
-                      <h4 className="text-sm font-semibold text-slate-700 mb-3">Quality Metrics</h4>
+                      <h4 className="text-xs font-semibold text-slate-700 mb-3">Quality Metrics</h4>
                       <div className="grid grid-cols-3 gap-3">
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">Compression Ratio</span>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">Compression</span>
                           <span className="text-xs font-medium text-emerald-600">{result.compressionRatio}%</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">Compression Ratio</div>
-                            <div className="text-center">How much the original text was condensed. Higher = more concise.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">Compression Ratio</div>
+                            <div className="text-justify leading-tight text-slate-300">How much the original text was condensed. Higher = more concise summary. Ideal: 60-80%</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">Word Count</span>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">Word Count</span>
                           <span className="text-xs font-medium text-blue-600">{result.wordCount}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">Word Count</div>
-                            <div className="text-center">Number of words in the summary. Ideal: 50-200 words.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">Word Count</div>
+                            <div className="text-justify leading-tight text-slate-300">Number of words in the summary. Ideal range: 50-200 words.</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">Sentences</span>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">Sentences</span>
                           <span className="text-xs font-medium text-purple-600">{result.metrics.sentenceCount}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">Sentences</div>
-                            <div className="text-center">Number of sentences in summary. Ideal: 3-6 sentences.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">Sentence Count</div>
+                            <div className="text-justify leading-tight text-slate-300">Number of sentences in the summary. Ideal: 3-8 sentences.</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">Coherence</span>
-                          <span className="text-xs font-medium text-indigo-600">{(result.metrics.coherence * 100)?.toFixed(0) || 'N/A'}%</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">Coherence</div>
-                            <div className="text-center">How logically connected the summary is. Higher = more coherent.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">Coherence</span>
+                          <span className="text-xs font-medium text-indigo-600">{(result.metrics.coherence * 100)?.toFixed(0) || '-'}%</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">Coherence Score</div>
+                            <div className="text-justify leading-tight text-slate-300">How logically connected the summary is. Higher = more coherent. Ideal: 70%+</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">Confidence</span>
-                          <span className="text-xs font-medium text-green-600">{result.confidence ? (result.confidence * 100).toFixed(0) + '%' : 'N/A'}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">Confidence</div>
-                            <div className="text-center">AI confidence in summary quality. Higher = more reliable.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">Confidence</span>
+                          <span className="text-xs font-medium text-green-600">{result.confidence ? (result.confidence * 100).toFixed(0) + '%' : '-'}</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">AI Confidence</div>
+                            <div className="text-justify leading-tight text-slate-300">AI confidence in summary quality. Higher = more reliable. Ideal: 80%+</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">ROUGE-1</span>
-                          <span className="text-xs font-medium text-blue-600">{result.metrics.rouge1 ? (result.metrics.rouge1 * 100).toFixed(1) + '%' : 'N/A'}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">ROUGE-1 Score</div>
-                            <div className="text-center">Unigram overlap with original text. Higher = better content retention. Ideal: 60-80%.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">Processing Time</span>
+                          <span className="text-xs font-medium text-slate-800">{result.processingTime}ms</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">Processing Time</div>
+                            <div className="text-justify leading-tight text-slate-300">Time taken to generate the summary. Lower = faster processing. Ideal: less than 2000ms</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">ROUGE-2</span>
-                          <span className="text-xs font-medium text-blue-600">{result.metrics.rouge2 ? (result.metrics.rouge2 * 100).toFixed(1) + '%' : 'N/A'}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">ROUGE-2 Score</div>
-                            <div className="text-center">Bigram overlap with original text. Higher = better phrase preservation. Ideal: 40-60%.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">ROUGE-1</span>
+                          <span className="text-xs font-medium text-blue-600">{result.metrics.rouge1 ? (result.metrics.rouge1 * 100).toFixed(1) + '%' : '-'}</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">ROUGE-1 Score</div>
+                            <div className="text-justify leading-tight text-slate-300">Unigram overlap with original text. Higher = better content retention. Ideal: 40-70%</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">ROUGE-L</span>
-                          <span className="text-xs font-medium text-blue-600">{result.metrics.rougeL ? (result.metrics.rougeL * 100).toFixed(1) + '%' : 'N/A'}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">ROUGE-L Score</div>
-                            <div className="text-center">Longest common subsequence match. Higher = better structural similarity. Ideal: 50-70%.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">ROUGE-2</span>
+                          <span className="text-xs font-medium text-blue-600">{result.metrics.rouge2 ? (result.metrics.rouge2 * 100).toFixed(1) + '%' : '-'}</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">ROUGE-2 Score</div>
+                            <div className="text-justify leading-tight text-slate-300">Bigram overlap with original text. Higher = better phrase retention. Ideal: 20-50%</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">BLEU Score</span>
-                          <span className="text-xs font-medium text-purple-600">{result.metrics.bleu ? (result.metrics.bleu * 100).toFixed(1) + '%' : 'N/A'}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">BLEU Score</div>
-                            <div className="text-center">Machine translation quality metric. Higher = more natural language. Ideal: 50-80%.</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">ROUGE-L</span>
+                          <span className="text-xs font-medium text-blue-600">{result.metrics.rougeL ? (result.metrics.rougeL * 100).toFixed(1) + '%' : '-'}</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">ROUGE-L Score</div>
+                            <div className="text-justify leading-tight text-slate-300">Longest common subsequence. Higher = better structure preservation. Ideal: 30-60%</div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center group relative">
-                          <span className="text-xs text-slate-600 cursor-help">Flesch-Kincaid</span>
-                          <span className="text-xs font-medium text-orange-600">{result.metrics.readabilityScore?.toFixed(1) || 'N/A'}</span>
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-md border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-48 z-50 shadow-lg">
-                            <div className="font-medium mb-0.5 text-center">Flesch-Kincaid Grade Level</div>
-                            <div className="text-center">Reading grade level required. Lower = easier to read. Ideal: 6-12 (6th-12th grade).</div>
-                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-3 border-transparent border-t-slate-800"></div>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">BLEU Score</span>
+                          <span className="text-xs font-medium text-purple-600">{result.metrics.bleu ? (result.metrics.bleu * 100).toFixed(1) + '%' : '-'}</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">BLEU Score</div>
+                            <div className="text-justify leading-tight text-slate-300">Bilingual evaluation understudy. Higher = better translation quality. Ideal: 30-70%</div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Performance Metrics */}
-                    <div className="bg-white/60 border border-white/40 rounded-xl p-4">
-                      <h4 className="text-sm font-semibold text-slate-700 mb-3">Performance</h4>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-slate-600">Processing Time</span>
-                        <span className="text-xs font-medium text-slate-800">{result.processingTime}ms</span>
+                        <div className="flex justify-between items-center group relative cursor-help">
+                          <span className="text-xs text-slate-600">Flesch-Kincaid</span>
+                          <span className="text-xs font-medium text-orange-600">{result.metrics.readabilityScore?.toFixed(1) || '-'}</span>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-slate-100 text-[10px] rounded-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-auto whitespace-nowrap z-[9999] shadow-xl">
+                            <div className="font-semibold mb-0.5 text-slate-200">Flesch-Kincaid Grade Level</div>
+                            <div className="text-justify leading-tight text-slate-300">Reading grade level required. Lower = easier to read. Ideal: 6-12</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     {/* Output Window - Summary Text */}
                     <div className="bg-white/70 border border-white/50 rounded-xl p-4">
-                      <h4 className="text-sm font-semibold text-slate-700 mb-3">Summary Output</h4>
-                      <div className="text-sm text-slate-800 whitespace-pre-wrap">
+                      <h4 className="text-sm font-semibold text-orange-600 mb-3">Summary Output</h4>
+                      <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed font-medium">
                         {result.summary}
                       </div>
                     </div>
@@ -757,28 +581,8 @@ export default function SummarizeAIPage() {
                       >
                         Copy Summary
                       </button>
-                      <button
-                        onClick={() => setShowKeyPoints(!showKeyPoints)}
-                        className="px-4 py-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors"
-                      >
-                        {showKeyPoints ? 'Hide' : 'Show'} Key Points
-                      </button>
                     </div>
 
-                    {/* Key Points */}
-                    {showKeyPoints && result.keyPoints.length > 0 && (
-                      <div className="bg-white/60 border border-white/40 rounded-xl p-4">
-                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Key Points</h4>
-                        <ul className="space-y-2">
-                          {result.keyPoints.map((point, index) => (
-                            <li key={index} className="text-xs text-slate-600 flex items-start gap-2">
-                              <span className="text-blue-500 mt-1">•</span>
-                              <span>{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 </PremiumCard>
               ) : (
@@ -786,9 +590,48 @@ export default function SummarizeAIPage() {
                   title="AI Summary Output"
                   subtitle="Your generated summary will appear here"
                   gradient="from-slate-50 to-slate-100"
+                  className="flex-1 h-full"
                 >
-                  <div className="flex items-center justify-center h-96 text-slate-400">
-                    Ready to generate
+                  <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
+                    <div className="relative">
+                      <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center shadow-lg">
+                        <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-bold text-slate-700 tracking-tight">
+                        AI-Powered Summary Ready
+                      </h3>
+                      <p className="text-sm text-slate-500 max-w-sm leading-relaxed">
+                        Enter your text in the input panel and click "Generate Summary" to create
+                        intelligent, context-aware summaries with advanced quality metrics.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs text-slate-400">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                        <span>Advanced AI Models</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span>Quality Metrics</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <span>Enterprise Security</span>
+                      </div>
+                    </div>
                   </div>
                 </PremiumCard>
               )}

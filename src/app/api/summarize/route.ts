@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
       mode = 'abstractive',
       quality = 'standard',
       tone = 'neutral',
-      length = 'medium'
+      length = 'medium',
+      format = 'paragraphs'
     } = body;
 
     // Validate input - either text or document_id required
@@ -57,9 +58,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (text && text.length > 50000) {
+    if (text && text.length > 200000) {
       return NextResponse.json(
-        { success: false, error: 'Text exceeds maximum length of 50,000 characters' },
+        { success: false, error: 'Text exceeds maximum length of 200,000 characters' },
         { status: 400 }
       );
     }
@@ -67,9 +68,10 @@ export async function POST(request: NextRequest) {
     // Get text from document if document_id provided
     let finalText = text;
     if (document_id && !text) {
+      console.log('Fetching document content for ID:', document_id);
       const document = await (prisma as any).document.findUnique({
         where: { id: document_id, userId: user.id },
-        select: { originalText: true }
+        select: { originalText: true, fileName: true }
       });
 
       if (!document) {
@@ -80,6 +82,14 @@ export async function POST(request: NextRequest) {
       }
 
       finalText = document.originalText;
+      console.log('Retrieved document text length:', finalText?.length || 0, 'for file:', document.fileName);
+
+      if (!finalText || finalText.trim().length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Document contains no readable text. Please upload a document with text content.' },
+          { status: 400 }
+        );
+      }
     }
 
     // Generate unique job ID for progress tracking
@@ -94,6 +104,7 @@ export async function POST(request: NextRequest) {
       quality,
       tone,
       length,
+      outputFormat: format,
       ...config,
     };
 
@@ -105,6 +116,14 @@ export async function POST(request: NextRequest) {
 
     // Generate summary with progress callbacks
     const result = await summarizer.summarizeText(finalText!, summarizationConfig, user.id);
+
+    // Debug: Log the result to see what's happening
+    console.log('Summarization result:', {
+      hasSummary: !!result.summary,
+      summaryLength: result.summary?.length || 0,
+      method: result.method,
+      processingTime: result.processingTime
+    });
 
     // Update progress: Summarization complete
     await realTimeProcessor.updateProgress(jobId, 80, 'Summarization complete, storing results', 'postprocessing');

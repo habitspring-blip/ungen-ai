@@ -16,36 +16,6 @@ Authorization: Bearer <supabase_jwt_token>
 
 ### 1. Document Management
 
-#### POST `/api/documents/upload`
-
-Upload a document for summarization.
-
-**Request Body:**
-
-```json
-{
-  "file": "File object (text, PDF, DOCX, HTML)",
-  "metadata": {
-    "name": "document.pdf",
-    "type": "application/pdf"
-  }
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "document_id": "uuid",
-  "status": "queued"
-}
-```
-
-**Rate Limit:** 10 uploads per minute
-**File Size Limit:** 10MB
-**Supported Formats:** .txt, .pdf, .docx, .html
-
 #### GET `/api/documents/:id`
 
 Retrieve document details and status.

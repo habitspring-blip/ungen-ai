@@ -17,7 +17,10 @@ export class TextProcessor {
   constructor() {
     this.languageDetector = new LanguageDetector();
     this.tokenizer = new natural.WordTokenizer();
-    this.initializePipelines();
+    // Initialize pipelines asynchronously - don't block constructor
+    this.initializePipelines().catch(error => {
+      console.warn('ML pipelines failed to initialize, using fallback methods:', error);
+    });
   }
 
   /**
