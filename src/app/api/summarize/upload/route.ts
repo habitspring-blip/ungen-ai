@@ -56,8 +56,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate summary from file
-    const result = await summarizer.summarizeFile(file, config, user.id);
+    // Extract text from file
+    let text: string;
+    if (file.type === 'text/plain' || file.type === 'text/html') {
+      text = await file.text();
+    } else if (file.type === 'application/pdf') {
+      // For PDF processing, we'd use pdf-parse library
+      text = await file.text(); // Fallback
+    } else if (file.type.startsWith('application/vnd.openxmlformats') || file.type === 'application/msword') {
+      // For Word processing, we'd use mammoth library
+      text = await file.text(); // Fallback
+    } else {
+      throw new Error(`Unsupported file type: ${file.type}`);
+    }
+
+    // Generate summary from extracted text
+    const result = await summarizer.summarizeText(text, config, user.id);
 
     // Store in database
     await storeFileSummary(user.id, file, result);
