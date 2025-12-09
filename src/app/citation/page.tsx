@@ -378,166 +378,198 @@ export default function CitationDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">CitePro</h1>
-            <p className="text-slate-600">Smart citations for modern researchers</p>
-          </div>
+      <div className="bg-white/80 backdrop-blur-lg border-b border-slate-200/60 shadow-sm px-4 md:px-6 py-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-center justify-between lg:justify-start">
+            <div className="flex items-center gap-4">
+              {/* Logo/Brand */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">CitePro</h1>
+                  <p className="text-sm text-slate-600 hidden sm:block">Smart citations for modern researchers</p>
+                </div>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-4">
             {/* Mobile Sidebar Toggle */}
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="md:hidden p-2 text-slate-400 hover:text-slate-600 transition"
+              className="lg:hidden p-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all duration-200"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
+          </div>
 
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
             {/* Search */}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-initial">
               <input
                 type="text"
                 placeholder="Search references..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-64 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full sm:w-48 md:w-64 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
 
-            {/* Citation Style Selector */}
-            <button
-              onClick={() => setShowCitationStyles(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              {citationStyles.find(s => s.id === selectedCitationStyle)?.name || 'APA'}
-              <svg className="w-4 h-4 ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+            {/* Primary Actions - Always visible */}
+            <div className="flex items-center gap-2">
+              {/* Citation Style Selector */}
+              <button
+                onClick={() => setShowCitationStyles(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <span className="hidden sm:inline">{citationStyles.find(s => s.id === selectedCitationStyle)?.name || 'APA'}</span>
+                <span className="sm:hidden">Style</span>
+                <svg className="w-4 h-4 ml-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-            {/* Discovery Engine Button */}
-            <button
-              onClick={() => setShowDiscoveryEngine(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              Discover
-            </button>
+              {/* New Reference Button */}
+              <PremiumButton size="sm" className="whitespace-nowrap">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="hidden sm:inline">New Reference</span>
+                <span className="sm:hidden">New</span>
+              </PremiumButton>
+            </div>
 
-            {/* Network Visualization Button */}
-            <button
-              onClick={() => setShowNetworkVisualization(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              Network
-            </button>
+            {/* Secondary Actions - Hidden on small screens */}
+            <div className="hidden md:flex items-center gap-2 flex-wrap">
+              {/* Discovery Engine Button */}
+              <button
+                onClick={() => setShowDiscoveryEngine(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Discover
+              </button>
 
-            {/* Research Trends Button */}
-            <button
-              onClick={() => setShowTrendsDashboard(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Trends
-            </button>
+              {/* Network Visualization Button */}
+              <button
+                onClick={() => setShowNetworkVisualization(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Network
+              </button>
 
-            {/* Alerts Button */}
-            <button
-              onClick={() => setShowAlerts(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all relative"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              Alerts
-              {alerts.filter(a => !a.read).length > 0 && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-xs text-white font-medium">
-                    {alerts.filter(a => !a.read).length}
-                  </span>
-                </div>
-              )}
-            </button>
+              {/* Research Trends Button */}
+              <button
+                onClick={() => setShowTrendsDashboard(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Trends
+              </button>
 
-            {/* Writing Assistant Button */}
-            <button
-              onClick={() => setShowWritingAssistant(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Write
-            </button>
+              {/* Alerts Button */}
+              <button
+                onClick={() => setShowAlerts(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all relative"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Alerts
+                {alerts.filter(a => !a.read).length > 0 && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-xs text-white font-medium">
+                      {alerts.filter(a => !a.read).length}
+                    </span>
+                  </div>
+                )}
+              </button>
 
-            {/* Enterprise Settings Button */}
-            <button
-              onClick={() => setShowEnterpriseSettings(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              Enterprise
-            </button>
+              {/* Writing Assistant Button */}
+              <button
+                onClick={() => setShowWritingAssistant(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Write
+              </button>
 
-            {/* Analytics Button */}
-            <button
-              onClick={() => setShowAnalytics(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Analytics
-            </button>
+              {/* Enterprise Settings Button */}
+              <button
+                onClick={() => setShowEnterpriseSettings(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Enterprise
+              </button>
 
-            {/* Activity Feed Button */}
-            <button
-              onClick={() => setShowActivityFeed(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all relative"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Activity
-              {/* Activity indicator dot */}
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            </button>
+              {/* Analytics Button */}
+              <button
+                onClick={() => setShowAnalytics(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Analytics
+              </button>
 
-            {/* Export Button */}
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export
-            </button>
+              {/* Activity Feed Button */}
+              <button
+                onClick={() => setShowActivityFeed(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all relative"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Activity
+                {/* Activity indicator dot */}
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              </button>
 
-            {/* New Reference Button */}
-            <PremiumButton size="sm">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Reference
-            </PremiumButton>
+              {/* Export Button */}
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export
+              </button>
+            </div>
+
+            {/* Mobile Menu Button for additional actions */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setShowActivityFeed(true)} // Using activity feed as a placeholder for mobile menu
+                className="p-2 text-slate-400 hover:text-slate-600 transition"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -666,22 +698,22 @@ export default function CitationDashboardPage() {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-4 md:p-6 overflow-x-hidden">
           {/* Quick Actions */}
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-slate-900 mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quickActions.map((action) => (
                 <button
                   key={action.id}
                   onClick={action.action}
-                  className="p-4 bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+                  className="p-4 bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:shadow-md transition-all text-left group min-h-[100px]"
                 >
                   <div className="text-2xl mb-2">{action.icon}</div>
-                  <div className="text-sm font-medium text-slate-900 group-hover:text-indigo-700">
+                  <div className="text-sm font-medium text-slate-900 group-hover:text-indigo-700 line-clamp-2">
                     {action.title}
                   </div>
-                  <div className="text-xs text-slate-500 mt-1">
+                  <div className="text-xs text-slate-500 mt-1 line-clamp-2">
                     {action.description}
                   </div>
                 </button>
@@ -733,11 +765,11 @@ export default function CitationDashboardPage() {
 
             {/* References Display */}
             {activeView === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {filteredReferences.map((reference) => (
                   <div
                     key={reference.id}
-                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer min-h-[180px]"
                     onClick={() => {
                       setSelectedReference(reference);
                       setEditingReference(null);
@@ -745,21 +777,22 @@ export default function CitationDashboardPage() {
                     }}
                   >
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-slate-900 line-clamp-2 mb-1">
+                      <div className="flex-1 min-w-0 mr-2">
+                        <h3 className="text-sm font-medium text-slate-900 line-clamp-2 mb-1 leading-tight">
                           {reference.title}
                         </h3>
-                        <p className="text-xs text-slate-600">
+                        <p className="text-xs text-slate-600 line-clamp-1">
                           {reference.authors.join(', ')} ({reference.year})
                         </p>
                       </div>
                       {reference.hasPdf && (
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setPdfUrl(`/api/documents/${reference.id}/pdf`); // Mock PDF URL
                             setShowPdfViewer(true);
                           }}
-                          className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                          className="flex-shrink-0 ml-2 text-red-500 hover:text-red-700 transition-colors"
                           title="View PDF"
                         >
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -770,17 +803,17 @@ export default function CitationDashboardPage() {
                     </div>
 
                     {reference.journal && (
-                      <p className="text-xs text-slate-500 mb-2">
+                      <p className="text-xs text-slate-500 mb-2 line-clamp-1">
                         {reference.journal}
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-wrap gap-1">
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="flex flex-wrap gap-1 flex-1 min-w-0">
                         {reference.tags.slice(0, 2).map((tag) => (
                           <span
                             key={tag}
-                            className="px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded"
+                            className="px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded truncate max-w-[80px]"
                           >
                             {tag}
                           </span>
@@ -792,7 +825,7 @@ export default function CitationDashboardPage() {
                         )}
                       </div>
 
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-slate-400 flex-shrink-0 ml-2">
                         {reference.citationCount} citations
                       </div>
                     </div>
@@ -811,50 +844,64 @@ export default function CitationDashboardPage() {
                       setShowReferenceDetail(true);
                     }}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-slate-900 mb-1">
+                        <h3 className="text-sm font-medium text-slate-900 mb-1 line-clamp-2">
                           {reference.title}
                         </h3>
-                        <div className="flex items-center gap-4 text-xs text-slate-600">
-                          <span>{reference.authors.join(', ')}</span>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-slate-600">
+                          <span className="truncate">{reference.authors.join(', ')}</span>
                           <span>({reference.year})</span>
-                          {reference.journal && <span>{reference.journal}</span>}
-                          <span>{reference.citationCount} citations</span>
+                          {reference.journal && <span className="truncate">{reference.journal}</span>}
+                          <span className="sm:hidden">{reference.citationCount} citations</span>
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {reference.tags.map((tag) => (
+                          {reference.tags.slice(0, 3).map((tag) => (
                             <span
                               key={tag}
-                              className="px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded"
+                              className="px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded truncate max-w-[100px]"
                             >
                               {tag}
                             </span>
                           ))}
+                          {reference.tags.length > 3 && (
+                            <span className="px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded">
+                              +{reference.tags.length - 3}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 ml-4">
-                        {reference.hasPdf && (
+                      <div className="flex items-center justify-between sm:justify-end gap-2 sm:ml-4 flex-shrink-0">
+                        <div className="hidden sm:block text-xs text-slate-400">
+                          {reference.citationCount} citations
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {reference.hasPdf && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPdfUrl(`/api/documents/${reference.id}/pdf`); // Mock PDF URL
+                                setShowPdfViewer(true);
+                              }}
+                              className="p-2 text-slate-400 hover:text-slate-600"
+                              title="View PDF"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8.5 2H15.5L19 5.5V22H5V2H8.5ZM15 3.5V7H18.5L15 3.5ZM7 4V20H17V9H13V4H7Z"/>
+                              </svg>
+                            </button>
+                          )}
+
                           <button
-                            onClick={() => {
-                              setPdfUrl(`/api/documents/${reference.id}/pdf`); // Mock PDF URL
-                              setShowPdfViewer(true);
-                            }}
+                            onClick={(e) => e.stopPropagation()}
                             className="p-2 text-slate-400 hover:text-slate-600"
-                            title="View PDF"
                           >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8.5 2H15.5L19 5.5V22H5V2H8.5ZM15 3.5V7H18.5L15 3.5ZM7 4V20H17V9H13V4H7Z"/>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                             </svg>
                           </button>
-                        )}
-
-                        <button className="p-2 text-slate-400 hover:text-slate-600">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -884,10 +931,10 @@ export default function CitationDashboardPage() {
 
       {/* Citation Styles Modal */}
       {showCitationStyles && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-semibold text-slate-900">Citation Styles</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Citation Styles</h2>
               <button
                 onClick={() => setShowCitationStyles(false)}
                 className="p-2 text-slate-400 hover:text-slate-600"
@@ -898,13 +945,13 @@ export default function CitationDashboardPage() {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-120px)] sm:max-h-[calc(90vh-120px)]">
               <div className="mb-6">
                 <h3 className="text-lg font-medium text-slate-900 mb-2">Choose Citation Style</h3>
                 <p className="text-slate-600">Select a citation style to use for your references and exports.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 {citationStyles.map((style) => (
                   <button
                     key={style.id}
@@ -967,12 +1014,12 @@ export default function CitationDashboardPage() {
 
       {/* PDF Viewer Modal */}
       {showPdfViewer && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-900">PDF Viewer</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[95vh] sm:h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-slate-200">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 truncate">PDF Viewer</h2>
               <div className="flex items-center gap-2">
-                <button className="p-2 text-slate-400 hover:text-slate-600">
+                <button className="p-2 text-slate-400 hover:text-slate-600 hidden sm:block">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
@@ -988,7 +1035,7 @@ export default function CitationDashboardPage() {
               </div>
             </div>
 
-            <div className="flex-1 h-[calc(90vh-80px)]">
+            <div className="flex-1 h-[calc(95vh-70px)] sm:h-[calc(90vh-80px)]">
               <iframe
                 src={pdfUrl}
                 className="w-full h-full border-0"
@@ -1001,18 +1048,18 @@ export default function CitationDashboardPage() {
 
       {/* Reference Detail Modal */}
       {showReferenceDetail && selectedReference && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b border-slate-200 gap-2">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-slate-900 truncate">
                   {editingReference ? 'Edit Reference' : 'Reference Details'}
                 </h2>
-                <p className="text-slate-600 text-sm mt-1">
+                <p className="text-slate-600 text-sm mt-1 truncate">
                   {selectedReference.authors.join(', ')} ({selectedReference.year})
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {!editingReference ? (
                   <button
                     onClick={() => setEditingReference(selectedReference)}
@@ -1044,8 +1091,8 @@ export default function CitationDashboardPage() {
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-120px)] sm:max-h-[calc(90vh-120px)]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Metadata Section */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-slate-900">Metadata</h3>
@@ -2181,10 +2228,10 @@ export default function CitationDashboardPage() {
 
       {/* Writing Assistant Modal */}
       {showWritingAssistant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-semibold text-slate-900">Writing Assistant</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[95vh] sm:h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Writing Assistant</h2>
               <button
                 onClick={() => setShowWritingAssistant(false)}
                 className="p-2 text-slate-400 hover:text-slate-600"
@@ -2195,7 +2242,7 @@ export default function CitationDashboardPage() {
               </button>
             </div>
 
-            <div className="flex h-[calc(90vh-120px)]">
+            <div className="flex flex-col lg:flex-row h-[calc(95vh-120px)] sm:h-[calc(90vh-120px)]">
               {/* Writing Area */}
               <div className="flex-1 p-6 border-r border-slate-200">
                 <div className="mb-4">
@@ -2219,7 +2266,7 @@ export default function CitationDashboardPage() {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <button
                     onClick={() => {
                       // Mock grammar check

@@ -235,6 +235,12 @@ export class AdvancedSummarizer {
         };
       }
 
+      // Always calculate ROUGE scores against original text for display purposes
+      const rougeScores = this.calculateROUGEScores(text, summary);
+      finalMetrics.rouge1 = rougeScores.rouge1;
+      finalMetrics.rouge2 = rougeScores.rouge2;
+      finalMetrics.rougeL = rougeScores.rougeL;
+
       const result: SummaryResult = {
         summary,
         method: fullConfig.mode,
